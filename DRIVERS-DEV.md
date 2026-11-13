@@ -1,5 +1,3 @@
-Run in progress: started 2026-11-13T20:59Z
-
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -67,6 +65,34 @@ FREEHOLD, with its own decision and gate.
 
 ## Where things stand
 
+- 2026-11-13 (run 7): **Interrupts delivered to user-mode drivers (FREEHOLD
+  D-242); `VIRTNET.EXE` 1.1.0-1 on its MSI-X interrupt** (release `v5`;
+  the other four zips v4's byte for byte). The kernel gained, for every
+  driver: `DRIVER_IRQ` (0x0089: a vector 0x60–0x9F of its own; the
+  device's MSI-X entry 0, or its MSI, aimed at the BSP; INTx off;
+  `NOT_SUPPORTED` without either) and `DRIVER_WAIT` (0x008A: events
+  `EVENT_INTERRUPT` / `EVENT_WORK` — the NIC bridge signals WORK for the
+  first frame of a burst the stack queues — or sleep until one or a
+  timeout; events kept on the process's task under the scheduler's lock,
+  so none is lost). The vector is freed and MSI/MSI-X turned off when the
+  driver ends; `DRIVERS` shows `interrupts: MSI-X vector 0x60, N
+  delivered, M wake-ups`. Runtime: `driver::interrupts()`,
+  `driver::wait(ms)` (fall back to `None` / a 1 ms sleep on an older
+  kernel). VIRTNET points config + both queues at entry 0, drops
+  NO_INTERRUPT, sleeps up to 1 s; status `link up, interrupts (MSI-X)`.
+  Measured: idle 10 s → 0 interrupts, 11 wake-ups (polled ~10,000); a
+  megabyte 0.8/0.9 s (polled 1.4/1.7 s). FREEHOLD in two commits:
+  `3c47177` (ABI + runtime, additive, pushed first so v5 was built against
+  a published commit), then the kernel side + pin v5 + gates (`f5a57fe`,
+  rebased onto D-243/D-244). INTx is not
+  delivered (needs ACPI `_PRT`, AML): E1000.EXE (QEMU's e1000/82544GC have
+  no MSI), RTL8139.EXE still poll; HDA.EXE still polls its position every
+  2 ms while playing. Gates: stage 16 `vnetm` (`user_nic_checks` with
+  `irq="MSI-X"`: boot-log line, status, idle 10 s ≤ 30 wake-ups and no
+  interrupt, the two megabytes through interrupts, `/START` takes a vector
+  again), stage 16 secondary (status + MSI-X line), stage 4 secondary
+  (the minute idle at the prompt: no interrupt, ≤ 130 wake-ups; it woke
+  60). Stages 1, 4, 5, 9, 16 pass (`evidence/D-242-freehold.txt`).
 - 2026-11-13 (run 6): **HD Audio moved to user mode and the built-in
   removed in one step (FREEHOLD D-238, `75cd3e1`): `HDA.EXE`** (`drivers/hda`,
   1.0.0-1, release `v4`; the other four zips v3's byte for byte). First the
@@ -247,29 +273,34 @@ FREEHOLD, with its own decision and gate.
 
 ## Next, in order
 
-1. Interrupts delivered to user-mode drivers (DIRECTION Stage 16): today
-   a network driver polls with a 1 ms sleep — a thousand wake-ups a second
-   per card even when idle — and HDA.EXE polls every 2 ms while playing.
-   A general kernel change (deliver a device's MSI or INTx to its driver
-   as a wait it can block on, e.g. `DRIVER_IRQ_WAIT` with a timeout; MSI
-   via `DRIVER_CONFIG`'s capability walk, set up by the kernel): its own
-   decision, gated by moving E1000.EXE/VIRTNET.EXE (and RTL8139) onto it
-   with stage 4's idle-wire and throughput checks and stage 16's machines.
-   It also answers the one-off `UPDATE /Y` connect timeout seen in run 5.
-2. The boot-path PROPOSAL (storage, USB — including the USB stack's
+1. HDA.EXE on its MSI (D-242's calls; QEMU's ich9-intel-hda has MSI):
+   the stream's interrupt on buffer completion (BDL IOC + SD IOCE, INTCTL
+   SIE/GIE) instead of the 2 ms position poll while playing; gate stage 9
+   (both machines, 9b) with the recording checks as they are, plus the
+   MSI line and fewer wake-ups while playing. Then E1000.EXE on MSI where
+   the card has it — first check E1000.EXE really drives QEMU's `e1000e`
+   (82574L, 8086:10D3, in its catalog but never gated), add a stage 16
+   machine for it, then MSI there (the 8254x in QEMU have none).
+2. INTx for drivers (E1000 on 8254x, RTL8139): needs the firmware's PCI
+   routing (ACPI `_PRT` is AML; the kernel has no AML interpreter; q35's
+   Interrupt Line holds the PIC IRQ, not the I/O APIC input). A design
+   question, not a quick change: write it as a PROPOSAL (options: a small
+   `_PRT`-only AML walker; or the MP table / `$PIR`; or keep polling for
+   INTx-only cards) and put it under "Waiting on the owner".
+3. The boot-path PROPOSAL (storage, USB — including the USB stack's
    CDC-ECM network adapters, which are USB class drivers, not PCI — the
    boot keyboard/console, virtio-input): loading a driver before C: is
    mounted — write it in DECISIONS.md as a PROPOSAL and put it under
    "Waiting on the owner".
-3. The display drivers (`bochs.rs`, `virtio_gpu.rs`, the framebuffer):
+4. The display drivers (`bochs.rs`, `virtio_gpu.rs`, the framebuffer):
    built in, not on the path to C:, but owned by the graphics task (its
    native display stack, FAMILY_VIDEO, graphics/DESIGN.md). Don't move
    them; write a PROPOSAL it can see (in DECISIONS.md and noted in
    GRAPHICS-DEV.md's direction, not its code) of what a user-mode display
    driver's bridge would be, and put the decision under "Waiting on the
-   owner". After 1–3 every built-in that qualifies for Part 2 has moved or
+   owner". After 3–4 every built-in that qualifies for Part 2 has moved or
    is with the owner.
-4. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
+5. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
    4 vCPUs under TCG) boots in 5-8 s, over stage 3's 5 s limit, on the
    unchanged secondary machine too; run 4 passed every other stage 3 check
    with the limit raised locally (not committed). Not a regression of the
@@ -278,7 +309,7 @@ FREEHOLD, with its own decision and gate.
 ## Waiting on the owner
 
 - Sign the online driver catalog, `CATALOG.TXT` at the top of this
-  repository (now release v4's, addresses into `releases/v4/`); machines read
+  repository (now release v5's, addresses into `releases/v5/`); machines read
   it with `DRIVERS /UPDATE` and at boot (FREEHOLD D-219) and refuse it
   unsigned. In a checkout of this repository, `cargo drivers sign` prints
   the exact lines (two `openssl` lines — sign, then verify against
@@ -308,3 +339,4 @@ FREEHOLD, with its own decision and gate.
 - 2026-11-13 run 4: built-in e1000 removed from the kernel, every e1000 runs E1000.EXE; the boot waits for network drivers' interfaces; TASKS shows drivers; gate harness takes the shell's pid (D-229); gates 1/2/4/5/7/15/16 pass (after rebasing onto D-228: 1/4/5/16 again), 3 except its sandbox-bound boot-time limit.
 - 2026-11-13 run 5: VIRTNET.EXE (virtio-net in user mode) built here, release v3; FREEHOLD gains DRIVER_CONFIG + 8/16-bit BAR access, pins v3, the built-in virtio-net removed (D-231); gates 1/4/5/16 pass.
 - 2026-11-13 run 6: the sound bridge (DRIVER_SOUND) and HDA.EXE built here, release v4; the built-in HD Audio removed, the kernel keeps the mixer (D-238); gates 1/4/5/9/13/16 pass.
+- 2026-11-13 run 7: interrupts delivered to user-mode drivers — DRIVER_IRQ (MSI/MSI-X on a vector of the driver's) and DRIVER_WAIT (D-242); VIRTNET 1.1.0-1 on MSI-X, release v5; gates 1/4/5/9/16 pass.
