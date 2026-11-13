@@ -21,10 +21,17 @@
 //! Idle, it holds one page of DMA memory — CORB (1 KiB), RIRB (2 KiB) and
 //! the stream's buffer descriptor list (at 3 KiB) — and sleeps in the
 //! kernel until a program opens a stream. Playing, it tells the mixer the
-//! link position every 2 ms; when the last stream ends it stops the stream
-//! and the kernel takes the ring back. Polled (D-049): no interrupts. It
-//! needs no `unsafe`: every register access and every byte of DMA goes
-//! through the checked wrappers in `freehold_rt::driver`.
+//! link position as each piece of the ring has been played: the ring is
+//! cut into pieces of about 20 ms, each buffer descriptor asks for an
+//! interrupt on completion, and the driver sleeps in `DRIVER_WAIT` until
+//! its controller's MSI comes (FREEHOLD D-242; 1.1.0) — about fifty
+//! wake-ups a second while something plays, none while nothing does.
+//! A controller without MSI (or a kernel without `DRIVER_IRQ`) is polled
+//! every 2 ms as 1.0.0 was. Only the output stream's interrupt is
+//! enabled; the command rings stay polled. When the last stream ends it
+//! stops the stream and the kernel takes the ring back. It needs no
+//! `unsafe`: every register access and every byte of DMA goes through the
+//! checked wrappers in `freehold_rt::driver`.
 #![no_std]
 #![no_main]
 #![forbid(unsafe_code)]
@@ -66,6 +73,7 @@ const SD_BASE: u32 = 0x80;
 const SD_SIZE: u32 = 0x20;
 // Stream descriptor registers, from the descriptor's base.
 const SD_CTL: u32 = 0x00;
+const SD_STS: u32 = 0x03;
 const SD_CTL_STREAM: u32 = 0x02;
 const SD_LPIB: u32 = 0x04;
 const SD_CBL: u32 = 0x08;
@@ -107,10 +115,23 @@ const STREAM_TAG: u8 = 1;
 /// Where the rings and the descriptor list sit in the driver's one page.
 const RIRB_OFFSET: usize = 1024;
 const BDL_OFFSET: usize = 3072;
-/// The ring the kernel lends is played in this many buffer descriptors.
-const BDL_ENTRIES: usize = 4;
-/// How often a playing stream's position is given to the mixer (ms).
+/// The ring the kernel lends is played in pieces of about this long (ms),
+/// a buffer descriptor each, between 4 and `BDL_MAX` of them.
+const PIECE_MS: u32 = 20;
+const BDL_MAX: usize = 64;
+/// How often a playing stream's position is given to the mixer when the
+/// controller has no interrupt (ms).
 const POLL_MS: u64 = 2;
+/// With an interrupt, the longest sleep between two looks at the position
+/// (ms): should an interrupt not come, the mixer (150 ms ahead) still runs.
+const IRQ_WAIT_MS: u64 = 100;
+/// INTCTL: global interrupt enable; a stream's enable is bit (its index).
+const GIE: u32 = 1 << 31;
+/// A stream's control: run, interrupt on completion; its status: buffer
+/// completion, FIFO error, descriptor error (each cleared by writing 1).
+const SD_RUN: u8 = 0x02;
+const SD_IOCE: u8 = 0x04;
+const SD_STS_ALL: u8 = 0x1C;
 /// How long one wait for something to play lasts before it is asked again.
 const WAIT_MS: u64 = 1000;
 
@@ -153,9 +174,13 @@ struct Hda {
     dacs: Vec<u8>,
     outputs: Vec<&'static str>,
     rates: u32,
-    /// The first output stream descriptor's registers.
+    /// The first output stream descriptor's registers, and its index
+    /// (input streams come first).
     sd: u32,
+    sd_index: u32,
     mix_rate: u32,
+    /// The controller interrupts on each piece played (its MSI).
+    irq: bool,
 }
 
 fn now_ns() -> u64 {
@@ -323,6 +348,18 @@ fn format_for(rate: u32) -> Option<u16> {
     Some((base44 << 14) | (mult << 11) | (div << 8) | (1 << 4) | 1)
 }
 
+/// How many buffer descriptors the ring is played in: pieces of about
+/// `PIECE_MS` at `rate` (16-bit stereo), a power of two from 4 to
+/// `BDL_MAX`, so each is a whole number of 128-byte lines.
+fn bdl_entries(rate: u32, ring: usize) -> usize {
+    let piece = (rate as usize * 4 * PIECE_MS as usize / 1000).max(128);
+    let mut entries = 4;
+    while entries < BDL_MAX && ring / (entries * 2) >= piece {
+        entries *= 2;
+    }
+    entries
+}
+
 /// Choose the largest ring the controller offers (256, 16 or 2 entries).
 fn pick_ring_size(regs: &Bar0, reg: u32) -> u16 {
     let size = regs.read8(reg);
@@ -409,7 +446,9 @@ fn start(name: &str) -> Result<Hda, String> {
         outputs: Vec::new(),
         rates: 0,
         sd: SD_BASE + iss * SD_SIZE,
+        sd_index: iss,
         mix_rate: 0,
+        irq: false,
     };
     for codec in 0..15u8 {
         if present & (1 << codec) == 0 {
@@ -579,9 +618,21 @@ fn setup_codec(h: &mut Hda) -> bool {
 impl Hda {
     fn stop_stream(&self) {
         let ctl = self.sd + SD_CTL;
-        self.regs.write8(ctl, self.regs.read8(ctl) & !0x02);
+        self.regs.write8(ctl, self.regs.read8(ctl) & !(SD_RUN | SD_IOCE));
         let regs = &self.regs;
-        wait_for(10, || regs.read8(ctl) & 0x02 == 0);
+        wait_for(10, || regs.read8(ctl) & SD_RUN == 0);
+        self.regs.write8(self.sd + SD_STS, SD_STS_ALL);
+    }
+
+    /// Take the controller's MSI (D-242) and enable the output stream's
+    /// interrupt alone; false (polled) without one.
+    fn take_interrupt(&mut self) -> bool {
+        if driver::interrupts().is_none() {
+            return false;
+        }
+        self.regs.write32(INTCTL, GIE | (1 << self.sd_index));
+        self.irq = true;
+        true
     }
 
     /// Start the output stream on the ring the mixer lent: its buffer
@@ -589,14 +640,17 @@ impl Hda {
     /// tag. The bytes the controller fetches ahead of its position.
     fn start_stream(&mut self, ring: SoundRing) -> u32 {
         let format = format_for(self.mix_rate).unwrap_or(0);
-        let piece = (ring.len / BDL_ENTRIES) as u64;
-        for i in 0..BDL_ENTRIES {
+        let entries = bdl_entries(self.mix_rate, ring.len);
+        let piece = (ring.len / entries) as u64;
+        // Interrupt on completion of each piece, when there is one.
+        let ioc = u32::from(self.irq);
+        for i in 0..entries {
             let at = BDL_OFFSET + i * 16;
             let address = ring.phys + i as u64 * piece;
             self.page.write_u32(at, address as u32);
             self.page.write_u32(at + 4, (address >> 32) as u32);
             self.page.write_u32(at + 8, piece as u32);
-            self.page.write_u32(at + 12, 0);
+            self.page.write_u32(at + 12, ioc);
         }
         self.stop_stream();
         let ctl = self.sd + SD_CTL;
@@ -607,7 +661,7 @@ impl Hda {
         wait_for(10, || regs.read8(ctl) & 0x01 == 0);
         let bdl = self.page.phys() + BDL_OFFSET as u64;
         regs.write32(self.sd + SD_CBL, ring.len as u32);
-        regs.write16(self.sd + SD_LVI, (BDL_ENTRIES - 1) as u16);
+        regs.write16(self.sd + SD_LVI, (entries - 1) as u16);
         regs.write16(self.sd + SD_FMT, format);
         regs.write32(self.sd + SD_BDPL, bdl as u32);
         regs.write32(self.sd + SD_BDPU, (bdl >> 32) as u32);
@@ -617,7 +671,9 @@ impl Hda {
             self.verb12(dac, SET_STREAM, STREAM_TAG << 4);
         }
         let fifos = u32::from(self.regs.read16(self.sd + SD_FIFOS));
-        self.regs.write8(ctl, 0x02);
+        self.regs.write8(self.sd + SD_STS, SD_STS_ALL);
+        self.regs
+            .write8(ctl, if self.irq { SD_RUN | SD_IOCE } else { SD_RUN });
         (fifos + 64).next_multiple_of(4).max(256)
     }
 
@@ -637,7 +693,15 @@ impl Hda {
         let fetched = self.start_stream(ring);
         let len = ring.len as u32;
         loop {
-            thread::sleep_ms(POLL_MS);
+            if self.irq {
+                // Until a piece has been played (or, should its interrupt
+                // not come, a while); then acknowledge it before looking
+                // at the position, so the next piece interrupts again.
+                driver::wait(IRQ_WAIT_MS);
+                self.regs.write8(self.sd + SD_STS, SD_STS_ALL);
+            } else {
+                thread::sleep_ms(POLL_MS);
+            }
             let position = self.regs.read32(self.sd + SD_LPIB) % len.max(1);
             if !driver::sound_played(position, fetched) {
                 break;
@@ -689,6 +753,11 @@ fn main(_psp: &Psp) -> u8 {
         println!("HDA: another driver is the sound output.");
         return 1;
     }
+    driver::status(if h.take_interrupt() {
+        "interrupts (MSI)"
+    } else {
+        "polled"
+    });
     loop {
         if let Some(ring) = driver::sound_wait(WAIT_MS) {
             h.play(ring);

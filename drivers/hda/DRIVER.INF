@@ -6,9 +6,11 @@
 ; a catalog line matches vendor + base class, so the controllers' vendors
 ; are listed with the sound class, QEMU's two by their IDs, and HDA.EXE
 ; ends at once, saying so, on a multimedia device that is not HD Audio.
+; 1.1.0: on the controller's MSI (FREEHOLD D-242) while playing, an
+; interrupt per ~20 ms piece of the ring instead of a 2 ms poll.
 [Driver]
 Name=HDA
-Version=1.0.0-1
+Version=1.1.0-1
 File=HDA.EXE
 Description=Intel High Definition Audio
 Licence=MIT
