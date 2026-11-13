@@ -98,3 +98,33 @@ Image built by tools/build.sh with VIRTNET-1.0.0-1.ZIP = releases/v3's (sha256 8
 17:31:59 [secondary] ok   still serving after CRASH.EXE
 
 Earlier, on a development build of the same driver (before release v3): stage 16 secondary run four times — one FAIL (UPDATE /Y: 'cannot reach 10.0.2.2:18443 (Connection refused)' after smoltcp's 10 s connect timeout), three PASS; stage 4 secondary PASS.
+
+== After rebasing onto FREEHOLD D-232 (SETUP's INSTALL LOCALLY; kernel 827904 bytes): image rebuilt, gates rerun
+17:46:31 [primary] PASS stage 1
+17:46:37 [secondary] PASS stage 1
+17:46:37 gate 1: PASS
+17:48:13 [primary] PASS stage 4
+17:49:51 [secondary] PASS stage 4
+17:49:51 gate 4: PASS
+17:50:09 [primary] PASS stage 5
+17:50:26 [secondary] PASS stage 5
+17:50:34 [nvme] PASS stage 5
+17:50:46 [primary-reboot] PASS stage 5
+17:51:02 [primary-up] PASS stage 5
+17:51:02 gate 5: PASS
+17:52:11 [primary] PASS stage 16
+17:53:19 [secondary] PASS stage 16
+17:53:42 [rtl] PASS stage 16
+17:54:09 [e1000u] PASS stage 16
+17:54:36 [vnetm] PASS stage 16
+17:55:47 [drvdl] PASS stage 16
+17:56:16 [setup] PASS stage 16
+17:56:40 [cdrom] PASS stage 16
+17:56:55 [usbcd] PASS stage 16
+17:57:11 [disks] PASS stage 16
+17:57:18 [reinstall] PASS stage 16
+17:57:22 [installed] PASS stage 16
+17:57:34 [claim] PASS stage 16
+17:58:19 [install] PASS stage 16
+17:58:19 gate 16: PASS
+Pushed as FREEHOLD 853f8c6 (on 74bd158).

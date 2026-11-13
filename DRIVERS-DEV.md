@@ -1,4 +1,3 @@
-Run in progress: started 2026-11-13T16:59Z
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -66,6 +65,33 @@ FREEHOLD, with its own decision and gate.
 
 ## Where things stand
 
+- 2026-11-13 (run 5): **virtio-net moved to user mode and the built-in
+  removed in one step (FREEHOLD D-231, `853f8c6`): `VIRTNET.EXE`** (`drivers/virtnet`,
+  1.0.0-1, release `v3`; E1000/RTL8139/NVRTX v2's zips byte for byte).
+  The kernel gained `DRIVER_CONFIG` (0x0087: read up to 256 bytes of the
+  driver's own config space, read only; `driver::config`,
+  `driver::capabilities` in the runtime) and the runtime's `Bar0` 8/16-bit
+  accessors (unsafe count unchanged, 279: the two volatile sites made
+  generic). VIRTNET speaks the modern interface (capabilities → common /
+  notify / device structures in memory BARs), so 1AF4:1041 stays covered;
+  64-entry queues, polled 1 ms, avail NO_INTERRUPT. FREEHOLD pushed in two
+  commits: `74bd158` (DRIVER_CONFIG, additive, pushed first so release v3
+  could be built against a published commit), then the move (pin v3,
+  catalog lines, `net/virtio_net.rs` and `net::init` gone, gate). No PCI
+  network driver is left in the kernel; kernel 861696 → 856064 bytes.
+  Gate: stage 16 secondary `stage_16_virtio_moved` (no built-in, VIRTNET
+  pid up before the shell, interface 0 + PCI list + TASKS, AUTOEXEC's
+  DHCP); stage 4 secondary's network (60 s idle wire, HTTPD 387 KiB to the
+  host) through it; a new stage 16 machine `vnetm` (modern-only 1AF4:1041,
+  `disable-legacy=on`) through the e1000u checks, now shared as
+  `user_nic_checks` (DHCP, ping, 1 MiB twice, KILL, `DRIVERS /START`).
+  Stages 1, 4, 5, 16 (every machine) pass, again after rebasing onto D-232
+  (`evidence/D-231-freehold.txt`). Seen once in four stage-16-secondary runs on the
+  development zip: `UPDATE /Y`'s first connect timed out after smoltcp's
+  10 s (reported as "Connection refused"); three reruns passed, stage 4
+  passed; pcap of that run was overwritten. Watch for it — if it recurs,
+  suspect a lost SYN/SYN-ACK in VIRTNET's queues (or the 1 kHz poll
+  starving on this 2-CPU host); interrupts for drivers (Next 3) would help.
 - 2026-11-13 (run 4): **The kernel's e1000 driver removed (FREEHOLD
   D-229): every e1000 runs `E1000.EXE`** (release v2, unchanged; nothing
   here changed but this file and `evidence/D-229-freehold.txt`). Checked
@@ -191,33 +217,29 @@ FREEHOLD, with its own decision and gate.
 
 ## Next, in order
 
-1. virtio-net as a user-mode driver. QEMU's `virtio-net-pci` (the
-   secondary machine) is the transitional 1AF4:1000 with a legacy I/O BAR,
-   which today's `DRIVER_*` calls reach; the kernel's driver uses the modern
-   interface (PCI capabilities: common/notify/ISR/device config), which a
-   user-mode driver can only find with a read of its own device's config
-   space — a general `DRIVER_CONFIG` call (a shared change: its own
-   decision). Decide first which interface the user-mode driver speaks
-   (modern needs the call; legacy-only would drop 1AF4:1041, the
-   non-transitional device). The kernel's `virtio.rs` transport stays for
-   virtio-blk (boot path). Gate: the secondary machine's network through it
-   (stages 1, 4, 5, 16 secondary), then remove `net/virtio_net.rs`.
-2. HDA sound as a user-mode driver: needs the audio bridge (a user-mode
+1. HDA sound as a user-mode driver: needs the audio bridge (a user-mode
    sound driver's equivalent of the NIC bridge, what `PLAY`, the chime and
    the Windows add-on's sound (FREEHOLD-WINE D-209) write to) — a shared
-   interface: design it as a decision first. The chime plays at boot from
-   the kernel (D-103) before the shell; check what that means for a driver
-   started from `C:`.
-3. The boot-path PROPOSAL (storage, USB, boot keyboard/console): loading a
-   driver before C: is mounted — write it in DECISIONS.md as a PROPOSAL.
-4. Interrupts delivered to user-mode drivers (DIRECTION Stage 16): today a
+   interface: design it as a decision first (what the kernel's sound layer
+   keeps — the mixer/stream API programs use — and what moves: the
+   controller, CORB/RIRB, codec walk, stream DMA). The chime plays at boot
+   from the kernel (D-103) before the shell, i.e. before `C:\DRIVERS` runs
+   anything: check what that means (chime from the driver once it is up?
+   the chime is the owner's design — if it must move later, PROPOSAL). Stage
+   9 (the sound gates, `-sound.wav` captured) is the gate to keep passing.
+2. The boot-path PROPOSAL (storage, USB — including the USB stack's
+   CDC-ECM network adapters, which are USB class drivers, not PCI — the
+   boot keyboard/console): loading a driver before C: is mounted — write
+   it in DECISIONS.md as a PROPOSAL and put it under "Waiting on the
+   owner".
+3. Interrupts delivered to user-mode drivers (DIRECTION Stage 16): today a
    network driver polls with a 1 ms sleep, a thousand wake-ups a second
-   per card even when idle. On this two-CPU sandbox that cost was visible
-   once (stage 7's four-programs-at-once ratio missed on the primary
-   machine, passed on a second run). A general kernel change (deliver a
-   device's MSI/INTx to its driver as a wait it can block on): its own
-   decision, and it helps every driver that moves.
-5. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
+   per card even when idle — now on both test machines. On this two-CPU
+   sandbox that cost was visible once (stage 7's four-programs-at-once
+   ratio missed on the primary machine, passed on a second run). A general
+   kernel change (deliver a device's MSI/INTx to its driver as a wait it
+   can block on): its own decision, and it helps every driver that moved.
+4. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
    4 vCPUs under TCG) boots in 5-8 s, over stage 3's 5 s limit, on the
    unchanged secondary machine too; run 4 passed every other stage 3 check
    with the limit raised locally (not committed). Not a regression of the
@@ -226,7 +248,7 @@ FREEHOLD, with its own decision and gate.
 ## Waiting on the owner
 
 - Sign the online driver catalog, `CATALOG.TXT` at the top of this
-  repository (now release v2's, addresses into `releases/v2/`); machines read
+  repository (now release v3's, addresses into `releases/v3/`); machines read
   it with `DRIVERS /UPDATE` and at boot (FREEHOLD D-219) and refuse it
   unsigned. In a checkout of this repository, `cargo drivers sign` prints
   the exact lines (two `openssl` lines — sign, then verify against
@@ -254,3 +276,4 @@ FREEHOLD, with its own decision and gate.
 - 2026-11-13 (live, owner's request): D-219's gaps fixed — drivers run at once (DRIVERS_START), fuller drivers by catalog order, /BACK holds, UPDATE keeps online drivers, live media installs, DRIVERS /START (D-221); gates 1/4/5/16 pass.
 - 2026-11-13 run 3: E1000.EXE (the kernel's e1000 in user mode) built here, release v2, FREEHOLD pins v2 and gates it on stage 16 e1000u (D-224); `cargo drivers release` reuses published versions; gates 1/4/5/16 pass.
 - 2026-11-13 run 4: built-in e1000 removed from the kernel, every e1000 runs E1000.EXE; the boot waits for network drivers' interfaces; TASKS shows drivers; gate harness takes the shell's pid (D-229); gates 1/2/4/5/7/15/16 pass (after rebasing onto D-228: 1/4/5/16 again), 3 except its sandbox-bound boot-time limit.
+- 2026-11-13 run 5: VIRTNET.EXE (virtio-net in user mode) built here, release v3; FREEHOLD gains DRIVER_CONFIG + 8/16-bit BAR access, pins v3, the built-in virtio-net removed (D-231); gates 1/4/5/16 pass.
