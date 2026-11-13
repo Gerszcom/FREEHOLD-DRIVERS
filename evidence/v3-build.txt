@@ -1,0 +1,54 @@
+cargo drivers release 3 — 2026-11-13T17:24:04Z, FREEHOLD-DRIVERS d2d272200a7af2edfcddee0dd6399f55ed1a419d, FREEHOLD 74bd158797d6a0bc08961c993f374c846c8d822b, rustc 1.97.0 (2d8144b78 2026-07-07)
+
+15308636efbebfb62205a0f657bcabdf3025ca77f3f167a3391a28453e4dc6b6  E1000-1.0.0-1.ZIP
+ad3eca98d72a7b49be998a9309f7099b09a0bd2d057350d0abfcfc38b31419d4  NVRTX-1.0.0-1.ZIP
+0a1f2b7beb1365cf880d5cd1d8529eb36c909b64e8c99d18071734da2924d36f  RTL8139-1.0.0-1.ZIP
+85ed4079e2268e3e5f7d95f739e1cceab4eff16e188d1644f3776fc916313fd2  VIRTNET-1.0.0-1.ZIP
+16d95e01bf2d86490ca6d9ed0fd4ddc4af375e5fdf1c7b72afc32b09682e7f77  CATALOG.TXT
+
+; FREEHOLD's driver catalog (FREEHOLD's DECISIONS.md, D-090, D-127, D-196).
+; Written by FREEHOLD-DRIVERS' cargo drivers; do not edit by hand.
+; VENDOR:DEVICE CLASS NAME VERSION BYTES SHA256 ADDRESS DESCRIPTION
+; DEVICE is a hex id, or * for every device of that vendor in CLASS; ADDRESS
+; is relative to this file. CATALOG.SIG is its Ed25519 signature by the
+; owner's release key (C:\FREEHOLD\RELEASE.KEY); unsigned, it is not trusted.
+8086:100C network E1000 1.0.0-1 19218 15308636efbebfb62205a0f657bcabdf3025ca77f3f167a3391a28453e4dc6b6 E1000-1.0.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:100E network E1000 1.0.0-1 19218 15308636efbebfb62205a0f657bcabdf3025ca77f3f167a3391a28453e4dc6b6 E1000-1.0.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:100F network E1000 1.0.0-1 19218 15308636efbebfb62205a0f657bcabdf3025ca77f3f167a3391a28453e4dc6b6 E1000-1.0.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:1010 network E1000 1.0.0-1 19218 15308636efbebfb62205a0f657bcabdf3025ca77f3f167a3391a28453e4dc6b6 E1000-1.0.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:1011 network E1000 1.0.0-1 19218 15308636efbebfb62205a0f657bcabdf3025ca77f3f167a3391a28453e4dc6b6 E1000-1.0.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:1026 network E1000 1.0.0-1 19218 15308636efbebfb62205a0f657bcabdf3025ca77f3f167a3391a28453e4dc6b6 E1000-1.0.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:1027 network E1000 1.0.0-1 19218 15308636efbebfb62205a0f657bcabdf3025ca77f3f167a3391a28453e4dc6b6 E1000-1.0.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:1076 network E1000 1.0.0-1 19218 15308636efbebfb62205a0f657bcabdf3025ca77f3f167a3391a28453e4dc6b6 E1000-1.0.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:10D3 network E1000 1.0.0-1 19218 15308636efbebfb62205a0f657bcabdf3025ca77f3f167a3391a28453e4dc6b6 E1000-1.0.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+10DE:* display NVRTX 1.0.0-1 17154 ad3eca98d72a7b49be998a9309f7099b09a0bd2d057350d0abfcfc38b31419d4 NVRTX-1.0.0-1.ZIP NVIDIA GeForce RTX 20-50 (Turing-Blackwell)
+10EC:8139 network RTL8139 1.0.0-1 8577 0a1f2b7beb1365cf880d5cd1d8529eb36c909b64e8c99d18071734da2924d36f RTL8139-1.0.0-1.ZIP Realtek RTL8139 Ethernet
+1AF4:1000 network VIRTNET 1.0.0-1 23702 85ed4079e2268e3e5f7d95f739e1cceab4eff16e188d1644f3776fc916313fd2 VIRTNET-1.0.0-1.ZIP virtio network device (virtio 1.x)
+1AF4:1041 network VIRTNET 1.0.0-1 23702 85ed4079e2268e3e5f7d95f739e1cceab4eff16e188d1644f3776fc916313fd2 VIRTNET-1.0.0-1.ZIP virtio network device (virtio 1.x)
+
+VIRTNET.INF in VIRTNET-1.0.0-1.ZIP:
+['VIRTNET.EXE', 'VIRTNET.INF']
+; VIRTNET.EXE, a FREEHOLD user-mode driver from Gerszcom/FREEHOLD-DRIVERS
+[Driver]
+Name=VIRTNET
+Version=1.0.0-1
+File=VIRTNET.EXE
+Description=virtio network device (virtio 1.x)
+Licence=MIT
+Basic=Yes
+Source=https://github.com/Gerszcom/FREEHOLD-DRIVERS d2d272200a7af2edfcddee0dd6399f55ed1a419d, built against https://github.com/Gerszcom/FREEHOLD 74bd158797d6a0bc08961c993f374c846c8d822b
+
+[Devices]
+1AF4:1000 network
+1AF4:1041 network
+
+unzip -t:
+Archive:  releases/v3/VIRTNET-1.0.0-1.ZIP
+    testing: VIRTNET.EXE              OK
+    testing: VIRTNET.INF              OK
+No errors detected in compressed data of releases/v3/VIRTNET-1.0.0-1.ZIP.
+
+E1000, NVRTX, RTL8139: v2's zips, byte for byte:
+  E1000-1.0.0-1.ZIP identical to releases/v2
+  NVRTX-1.0.0-1.ZIP identical to releases/v2
+  RTL8139-1.0.0-1.ZIP identical to releases/v2
