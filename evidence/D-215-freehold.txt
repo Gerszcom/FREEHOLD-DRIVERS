@@ -1,0 +1,43 @@
+D-215 on FREEHOLD — the image's basic drivers from FREEHOLD-DRIVERS release v1 (2026-11-13T11:59Z)
+
+FREEHOLD tools/build.sh, target/drivers emptied first, so the zips came over HTTPS:
+drivers: fetching RTL8139-1.0.0-1.ZIP from https://raw.githubusercontent.com/Gerszcom/FREEHOLD-DRIVERS/9795adc74b900072da7730f6333e1dddc9552582/releases/v1
+drivers: RTL8139-1.0.0-1.ZIP -> C:\DRIVERS
+drivers: fetching NVRTX-1.0.0-1.ZIP from https://raw.githubusercontent.com/Gerszcom/FREEHOLD-DRIVERS/9795adc74b900072da7730f6333e1dddc9552582/releases/v1
+drivers: NVRTX-1.0.0-1.ZIP -> C:\DRIVERS
+
+dist/root/DRIVERS:
+  508  CATALOG.TXT
+  33280  NVRTX.EXE
+  425  NVRTX.INF
+  15872  RTL8139.EXE
+  415  RTL8139.INF
+
+A pin with a wrong SHA-256 stops the build and unpacks nothing:
+  drivers: RTL8139-1.0.0-1.ZIP does not match its SHA-256 in tools/drivers.pin (exit 1, destination empty)
+
+Gates on that image (tools/gate.py N):
+  stage 1 PASS
+  stage 4 PASS
+  stage 5 PASS
+  stage 16 PASS
+
+Stage 16 rtl machine (validation/stage-16/gate.log):
+  11:57:44 [rtl] ok   'process module up': 'process: task 0 is the kernel'
+  11:57:45 [rtl] ok   'C: mounted': 'fs: C: ExFat "FREEHOLD"'
+  11:57:45 [rtl] ok   'COMMAND.COM started (after the driver)': 'shell: C:\\FREEHOLD\\COMMAND.COM started as pid 2'
+  11:57:46 [rtl] ok   'the kernel starts the user-mode RTL8139 driver from the catalog, before the shell': 'drivers: started RTL8139.EXE for 10ec:8139 at 00:02.0 as pid 1'
+  11:57:46 [rtl] ok   'the driver brings the card up as a network interface': 'drivers: pid 1 up as a network interface, MAC 52:54:00:12:34:56'
+  11:57:50 [rtl] ok   'C:\\DRIVERS\\RTL8139.INF: the driver is version 1.0.0-1': 'Version=1.0.0-1'
+  11:57:50 [rtl] ok   "the image's driver came from FREEHOLD-DRIVERS' pinned release (D-215), built from a named commit": 'Source=https://github.com/Gerszcom/FREEHOLD-DRIVERS d4975251520eb0b6366228636b98ed65719bbb6b, built against'
+  11:57:51 [rtl] ok   'DRIVERS lists the user-mode driver as running': 'RTL8139.EXE   10ec:8139 at 00:02.0  pid 1    running'
+  11:57:51 [rtl] ok   'DRIVERS shows the one-line status the driver posted with DRIVER_STATUS': 'status: link up, 10/100 Mb/s, polled'
+  11:57:53 [rtl] ok   'DHCP gets an address through the user-mode RTL8139 driver': '10.0.2.15'
+  11:57:56 [rtl] ok   'the host answers ping through the user-mode driver': 'Reply from 10.0.2.2'
+  11:57:56 [rtl] ok   "the killed driver's device is stopped": 'drivers: pid 1 ended, its device stopped'
+  11:57:59 [rtl] ok   "the prompt is unaffected by the driver's death": 'the prompt is still here'
+  11:58:01 [rtl] ok   'DRIVERS shows the driver ended': 'RTL8139.EXE   10ec:8139 at 00:02.0  pid 1    ended'
+  11:58:02 [rtl] ok   'shutdown: bye': 'shutdown: bye'
+  11:58:02 [rtl] ok   "kernel enters S5 through the FADT's PM1 control": 'power: ACPI S5 (SLP_TYP 0/0)'
+  11:58:02 [rtl] ok   machine powered off through ACPI (QEMU exit code 0)
+  11:58:02 [rtl] PASS stage 16
