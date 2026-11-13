@@ -1,4 +1,3 @@
-Run in progress: started 2026-11-13T15:47Z
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -66,6 +65,22 @@ FREEHOLD, with its own decision and gate.
 
 ## Where things stand
 
+- 2026-11-13 (run 4): **The kernel's e1000 driver removed (FREEHOLD
+  D-229): every e1000 runs `E1000.EXE`** (release v2, unchanged; nothing
+  here changed but this file and `evidence/D-229-freehold.txt`). Checked
+  first: nothing used the network before `C:` was mounted (the stack starts
+  only on `IPCFG`; the installer menu and SETUP use none). What changed was
+  timing and numbering, fixed in the kernel for every user-mode network
+  driver: the boot now waits (5 s at most) after starting a driver for a
+  network controller until its interface is registered or it ended, before
+  the next device and the shell — so AUTOEXEC.BAT's `IPCFG /AUTO` (and a
+  server's `IPCFG DHCP`) finds the card, and interfaces stay numbered in PCI
+  order. Drivers are pids before the shell, so the shell is pid 1 + the
+  drivers started; `TASKS` shows a driver's kind as `driver`. The gate
+  harness takes the shell's pid from its start line (`expect_shell`,
+  `vm.shell_pid`); stage 16 primary checks the move (no built-in, E1000.EXE
+  interface 0 up before the shell, DHCP from AUTOEXEC's line); drvdl sees
+  its e1000 driven by E1000.EXE. Kernel 864256 → 861696 bytes. FREEHOLD `34abcc4`; stages 1, 4, 5, 16 pass (`evidence/D-229-freehold.txt`).
 - 2026-11-13 (run 3): **Part 2 begun: `E1000.EXE`, the kernel's e1000
   driver in user mode** (`drivers/e1000`, 1.0.0-1; FREEHOLD D-224). Same
   rings and register sequence as `net/e1000.rs`, over `DRIVER_MAP` (BAR0) +
@@ -175,24 +190,37 @@ FREEHOLD, with its own decision and gate.
 
 ## Next, in order
 
-1. Remove the built-in e1000 (`kernel/src/drivers/net/e1000.rs` and its
-   call in `net::init`), so every e1000 runs E1000.EXE. Check first what
-   ran on the network before C: was mounted (the user-mode driver starts
-   after C:): DHCP at boot / background DHCP (D-208), the installer and
-   live media (`setup`, `cdrom`, `usbcd`, `reinstall` machines), UPDATE /
-   DRIVERS boot lines, and the `drvdl` machine (its e1000 then becomes a
-   user-mode driver too: DRIVERS.EXE's matching must not offer to replace
-   it unexpectedly). Every gate with an e1000 (stages 1-18 mostly) must
-   pass; kernel size goes down; ARCHITECTURE.md's Network section changes.
-2. virtio-net as a user-mode driver: the legacy device (1AF4:1000) is
-   I/O-BAR virtio and fits today's calls; the modern one (1AF4:1041) needs
-   its PCI capabilities (virtio's common/notify/ISR/device config) — the
-   kernel would need a general `DRIVER_CONFIG` read of the device's own
-   config space (a shared change: its own decision). Then HDA sound (needs
-   the audio bridge: a user-mode sound driver's equivalent of DRIVER_NET —
-   a shared interface, design as a decision first).
+1. virtio-net as a user-mode driver. QEMU's `virtio-net-pci` (the
+   secondary machine) is the transitional 1AF4:1000 with a legacy I/O BAR,
+   which today's `DRIVER_*` calls reach; the kernel's driver uses the modern
+   interface (PCI capabilities: common/notify/ISR/device config), which a
+   user-mode driver can only find with a read of its own device's config
+   space — a general `DRIVER_CONFIG` call (a shared change: its own
+   decision). Decide first which interface the user-mode driver speaks
+   (modern needs the call; legacy-only would drop 1AF4:1041, the
+   non-transitional device). The kernel's `virtio.rs` transport stays for
+   virtio-blk (boot path). Gate: the secondary machine's network through it
+   (stages 1, 4, 5, 16 secondary), then remove `net/virtio_net.rs`.
+2. HDA sound as a user-mode driver: needs the audio bridge (a user-mode
+   sound driver's equivalent of the NIC bridge, what `PLAY`, the chime and
+   the Windows add-on's sound (FREEHOLD-WINE D-209) write to) — a shared
+   interface: design it as a decision first. The chime plays at boot from
+   the kernel (D-103) before the shell; check what that means for a driver
+   started from `C:`.
 3. The boot-path PROPOSAL (storage, USB, boot keyboard/console): loading a
    driver before C: is mounted — write it in DECISIONS.md as a PROPOSAL.
+4. Interrupts delivered to user-mode drivers (DIRECTION Stage 16): today a
+   network driver polls with a 1 ms sleep, a thousand wake-ups a second
+   per card even when idle. On this two-CPU sandbox that cost was visible
+   once (stage 7's four-programs-at-once ratio missed on the primary
+   machine, passed on a second run). A general kernel change (deliver a
+   device's MSI/INTx to its driver as a wait it can block on): its own
+   decision, and it helps every driver that moves.
+5. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
+   4 vCPUs under TCG) boots in 5-8 s, over stage 3's 5 s limit, on the
+   unchanged secondary machine too; run 4 passed every other stage 3 check
+   with the limit raised locally (not committed). Not a regression of the
+   move; worth a word to the owner if it persists.
 
 ## Waiting on the owner
 
@@ -224,3 +252,4 @@ FREEHOLD, with its own decision and gate.
 - 2026-11-13 run 2: the downloader — DRIVERS.EXE (/UPDATE, /CHECK, /BACK, /BOOT per DRIVERS=), the PCI list in DRIVERS, the online CATALOG.TXT here (cargo drivers current N); gated on stage 16 drvdl (D-219); gates 1/4/5/16 pass.
 - 2026-11-13 (live, owner's request): D-219's gaps fixed — drivers run at once (DRIVERS_START), fuller drivers by catalog order, /BACK holds, UPDATE keeps online drivers, live media installs, DRIVERS /START (D-221); gates 1/4/5/16 pass.
 - 2026-11-13 run 3: E1000.EXE (the kernel's e1000 in user mode) built here, release v2, FREEHOLD pins v2 and gates it on stage 16 e1000u (D-224); `cargo drivers release` reuses published versions; gates 1/4/5/16 pass.
+- 2026-11-13 run 4: built-in e1000 removed from the kernel, every e1000 runs E1000.EXE; the boot waits for network drivers' interfaces; TASKS shows drivers; gate harness takes the shell's pid (D-229); gates 1/2/4/5/7/15/16 pass (after rebasing onto D-228: 1/4/5/16 again), 3 except its sandbox-bound boot-time limit.
