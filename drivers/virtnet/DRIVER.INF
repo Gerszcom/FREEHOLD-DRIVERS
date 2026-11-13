@@ -6,7 +6,7 @@
 ; (1041), both driven through the modern (virtio 1.x) interface.
 [Driver]
 Name=VIRTNET
-Version=1.0.0-1
+Version=1.1.0-1
 File=VIRTNET.EXE
 Description=virtio network device (virtio 1.x)
 Licence=MIT

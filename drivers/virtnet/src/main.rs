@@ -17,10 +17,14 @@
 //!
 //! As the built-in: no mergeable buffers, no offloads, no control queue —
 //! a frame is one descriptor, after the 12-byte virtio-net header; the MAC
-//! and link status come from the device configuration when offered. The
-//! device is polled (D-049): each turn hands the stack every frame received,
-//! gives the device every frame the stack queued that the transmit queue
-//! has room for, then yields for a millisecond.
+//! and link status come from the device configuration when offered. Each
+//! turn hands the stack every frame received and gives the device every
+//! frame the stack queued that the transmit queue has room for. Between
+//! turns it sleeps in `DRIVER_WAIT` (D-242): with the device's MSI-X
+//! interrupt (both queues and configuration changes on entry 0) it sleeps
+//! until the device interrupts or the stack queues a frame, a second at
+//! most; a device without MSI-X is polled every millisecond, as the
+//! built-in was (D-049).
 #![no_std]
 #![no_main]
 #![forbid(unsafe_code)]
@@ -45,10 +49,12 @@ const DEVICE_FEATURE_SELECT: u32 = 0x00;
 const DEVICE_FEATURE: u32 = 0x04;
 const DRIVER_FEATURE_SELECT: u32 = 0x08;
 const DRIVER_FEATURE: u32 = 0x0C;
+const MSIX_CONFIG: u32 = 0x10;
 const NUM_QUEUES: u32 = 0x12;
 const DEVICE_STATUS: u32 = 0x14;
 const QUEUE_SELECT: u32 = 0x16;
 const QUEUE_SIZE: u32 = 0x18;
+const QUEUE_MSIX_VECTOR: u32 = 0x1A;
 const QUEUE_ENABLE: u32 = 0x1C;
 const QUEUE_NOTIFY_OFF: u32 = 0x1E;
 const QUEUE_DESC: u32 = 0x20;
@@ -68,6 +74,12 @@ const NET_F_STATUS: u64 = 1 << 16;
 const DESC_F_WRITE: u16 = 2;
 /// The avail ring's flags: the device need not interrupt (it is polled).
 const AVAIL_F_NO_INTERRUPT: u16 = 1;
+/// The MSI-X table entry every interrupt source is given: the one the
+/// kernel set up (`DRIVER_IRQ`).
+const VECTOR: u16 = 0;
+/// How long the driver sleeps with interrupts, at most: the link's state
+/// is looked at then too (a configuration change also interrupts).
+const IDLE_MS: u64 = 1000;
 
 /// Entries per queue: 64 frames each way, as E1000.EXE has — a 64 KiB TCP
 /// window arrives in bursts of ~45 frames between two polls (D-208).
@@ -182,6 +194,8 @@ struct Queue {
     notify_at: u32,
     avail_idx: u16,
     last_used: u16,
+    /// The device is polled: it need not interrupt for this queue.
+    quiet: bool,
 }
 
 impl Queue {
@@ -202,10 +216,8 @@ impl Queue {
         self.avail_idx = self.avail_idx.wrapping_add(1);
         // flags and idx in one 32-bit store, so the device never sees half
         // an index.
-        self.ring.write_u32(
-            AVAIL_OFFSET,
-            u32::from(AVAIL_F_NO_INTERRUPT) | (u32::from(self.avail_idx) << 16),
-        );
+        let flags = if self.quiet { AVAIL_F_NO_INTERRUPT } else { 0 };
+        self.ring.write_u32(AVAIL_OFFSET, u32::from(flags) | (u32::from(self.avail_idx) << 16));
         fence(Ordering::SeqCst);
     }
 
@@ -275,8 +287,16 @@ impl Nic {
         Ok(wanted)
     }
 
-    /// Set queue `index` up in `ring` with `QUEUE_LEN` entries.
-    fn setup_queue(bars: &Bars, t: &Transport, index: u16, ring: Dma) -> Result<Queue, &'static str> {
+    /// Set queue `index` up in `ring` with `QUEUE_LEN` entries, its
+    /// interrupt on MSI-X entry `vector` if given. The queue, and whether
+    /// the device took the vector.
+    fn setup_queue(
+        bars: &Bars,
+        t: &Transport,
+        index: u16,
+        ring: Dma,
+        vector: Option<u16>,
+    ) -> Result<(Queue, bool), &'static str> {
         let c = &t.common;
         bars.w16(c, QUEUE_SELECT, index);
         if bars.r16(c, QUEUE_SIZE) < QUEUE_LEN {
@@ -290,8 +310,14 @@ impl Nic {
         if u64::from(notify_at) + 2 > u64::from(t.notify.length) {
             return Err("a queue's notify address is outside the notify structure");
         }
+        // Before the queue is enabled (virtio 1.x, 4.1.4.3.2), read back:
+        // NO_VECTOR if the device could not take it.
+        let took = vector.is_some_and(|v| {
+            bars.w16(c, QUEUE_MSIX_VECTOR, v);
+            bars.r16(c, QUEUE_MSIX_VECTOR) == v
+        });
         bars.w16(c, QUEUE_ENABLE, 1);
-        Ok(Queue { ring, index, notify_at, avail_idx: 0, last_used: 0 })
+        Ok((Queue { ring, index, notify_at, avail_idx: 0, last_used: 0, quiet: true }, took))
     }
 
     fn driver_ok(&self) {
@@ -413,8 +439,8 @@ fn main(_psp: &Psp) -> u8 {
     let probe = Nic {
         bars,
         t,
-        rx: Queue { ring: rx_ring, index: RECEIVE_QUEUE, notify_at: 0, avail_idx: 0, last_used: 0 },
-        tx: Queue { ring: tx_ring, index: TRANSMIT_QUEUE, notify_at: 0, avail_idx: 0, last_used: 0 },
+        rx: Queue { ring: rx_ring, index: RECEIVE_QUEUE, notify_at: 0, avail_idx: 0, last_used: 0, quiet: true },
+        tx: Queue { ring: tx_ring, index: TRANSMIT_QUEUE, notify_at: 0, avail_idx: 0, last_used: 0, quiet: true },
         rx_bufs,
         tx_bufs,
         tx_free: [true; QUEUE_LEN as usize],
@@ -432,17 +458,27 @@ fn main(_psp: &Psp) -> u8 {
         return 1;
     }
     let Nic { bars, t, rx, tx, rx_bufs, tx_bufs, tx_free, .. } = probe;
-    let (rx, tx) = match (
-        Nic::setup_queue(&bars, &t, RECEIVE_QUEUE, rx.ring),
-        Nic::setup_queue(&bars, &t, TRANSMIT_QUEUE, tx.ring),
+    // The device's interrupt (D-242): virtio's is MSI-X, entry 0 for the
+    // configuration changes and both queues. Without it, polled.
+    let msix = driver::interrupts() == Some(driver::Interrupt::MsiX) && {
+        bars.w16(&t.common, MSIX_CONFIG, VECTOR);
+        bars.r16(&t.common, MSIX_CONFIG) == VECTOR
+    };
+    let vector = msix.then_some(VECTOR);
+    let (rx, tx, queues_took) = match (
+        Nic::setup_queue(&bars, &t, RECEIVE_QUEUE, rx.ring, vector),
+        Nic::setup_queue(&bars, &t, TRANSMIT_QUEUE, tx.ring, vector),
     ) {
-        (Ok(rx), Ok(tx)) => (rx, tx),
+        (Ok((rx, a)), Ok((tx, b))) => (rx, tx, a && b),
         (Err(e), _) | (_, Err(e)) => {
             println!("VIRTNET: {e}.");
             return 1;
         }
     };
+    let interrupts = msix && queues_took;
     let mut nic = Nic { bars, t, rx, tx, rx_bufs, tx_bufs, tx_free, status: wanted & NET_F_STATUS != 0 };
+    nic.rx.quiet = !interrupts;
+    nic.tx.quiet = !interrupts;
     for i in 0..QUEUE_LEN {
         nic.post_receive(i);
     }
@@ -450,30 +486,43 @@ fn main(_psp: &Psp) -> u8 {
     nic.rx.kick(&nic.bars, &nic.t);
     let mac = nic.mac(wanted);
     let mut link = nic.link_up();
+    let how = if interrupts { "interrupts (MSI-X)" } else { "polled" };
+    let say = |link: bool| {
+        let mut line = alloc::string::String::from(if link { "link up, " } else { "link down, " });
+        line.push_str(how);
+        driver::status(&line);
+    };
     driver::net(mac, link);
-    driver::status(if link { "link up, polled" } else { "link down, polled" });
+    say(link);
     println!(
-        "VIRTNET: {:04x}:{:04x} at {:02x}:{:02x}.{} up, MAC {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}, link {}",
+        "VIRTNET: {:04x}:{:04x} at {:02x}:{:02x}.{} up, MAC {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}, link {}, {}",
         dev.vendor, dev.device, dev.bus, dev.slot, dev.function,
         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
-        if link { "up" } else { "down" }
+        if link { "up" } else { "down" },
+        how
     );
 
     let mut scratch = [0u8; BUF_SIZE];
     let mut turns: u32 = 0;
+    let mut events = driver::Events::default();
     loop {
         nic.drain_receive(&mut scratch);
         nic.send_queued(&mut scratch);
-        // The link's state, about four times a second.
+        // The link's state: with interrupts, when the device interrupted
+        // (a configuration change does) or a second passed; polled, about
+        // four times a second.
         turns = turns.wrapping_add(1);
-        if turns.is_multiple_of(256) {
+        let look = if interrupts { !events.work || events.interrupt } else { turns.is_multiple_of(256) };
+        if look {
             let now = nic.link_up();
             if now != link {
                 link = now;
                 driver::net(mac, link);
-                driver::status(if link { "link up, polled" } else { "link down, polled" });
+                say(link);
             }
         }
-        thread::sleep_ms(1);
+        // Sleep until the device interrupts or the stack queues a frame
+        // (D-242); polled, a millisecond (and a queued frame ends it early).
+        events = driver::wait(if interrupts { IDLE_MS } else { 1 });
     }
 }
