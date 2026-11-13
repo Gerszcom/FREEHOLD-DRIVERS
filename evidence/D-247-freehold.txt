@@ -1,0 +1,81 @@
+FREEHOLD D-247 — HD Audio on its MSI: HDA.EXE 1.1.0-1 (release v6) sleeps in DRIVER_WAIT until a ~20 ms piece of the ring has played, instead of polling every 2 ms.
+FREEHOLD tree: 7f8d815 (origin/main, with D-245/D-246 of other tasks) + tools/drivers.pin -> release v6 at 26393a2 + stage 9/9b checks. No kernel change.
+Image built by tools/build.sh with HDA-1.1.0-1.ZIP = releases/v6's (sha256 c1555d62...), fetched from the published release. Kernel 848896 bytes (unchanged). 2026-11-13T22:59Z
+
+== python3 tools/gate.py 1
+22:39:11 [primary] PASS stage 1
+22:39:17 [secondary] PASS stage 1
+22:39:17 gate 1: PASS
+
+== python3 tools/gate.py 4
+22:40:51 [primary] PASS stage 4
+22:42:26 [secondary] PASS stage 4
+22:42:26 gate 4: PASS
+
+== python3 tools/gate.py 5
+22:42:42 [primary] PASS stage 5
+22:42:57 [secondary] PASS stage 5
+22:43:03 [nvme] PASS stage 5
+22:43:13 [primary-reboot] PASS stage 5
+22:43:27 [primary-up] PASS stage 5
+22:43:27 gate 5: PASS
+
+== python3 tools/gate.py 9
+22:38:09 [primary] PASS stage 9
+22:39:04 [secondary] PASS stage 9
+22:39:05 gate 9: PASS
+
+== python3 tools/gate.py 13
+22:54:20 [primary] PASS stage 13
+22:56:49 [secondary] PASS stage 13
+22:56:49 gate 13: PASS
+
+== python3 tools/gate.py 16
+22:44:21 [primary] PASS stage 16
+22:45:16 [secondary] PASS stage 16
+22:45:38 [rtl] PASS stage 16
+22:46:04 [e1000u] PASS stage 16
+22:46:40 [vnetm] PASS stage 16
+22:47:40 [drvdl] PASS stage 16
+22:48:31 [setup] PASS stage 16
+22:48:55 [cdrom] PASS stage 16
+22:49:09 [usbcd] PASS stage 16
+22:49:24 [disks] PASS stage 16
+22:49:29 [reinstall] PASS stage 16
+22:49:33 [installed] PASS stage 16
+22:49:44 [claim] PASS stage 16
+22:50:41 [install] PASS stage 16
+22:51:33 [dualboot] PASS stage 16
+22:51:44 [primary-keyb] PASS stage 16
+22:51:51 [primary-region] PASS stage 16
+22:51:52 gate 16: PASS
+
+== the interrupt (stage 9, both machines; 9b: after DRIVERS /START)
+22:37:20 [primary] ok   "HDA.EXE takes the controller's MSI (DRIVER_IRQ)": "drivers: pid 1 takes its device's interrupts (MSI, vector 0x60)"
+22:37:22 [primary] ok   DRIVERS lists HD Audio, the sound output through HDA.EXE (pid 1) on its MSI
+22:37:33 [primary] ok   idle 5 s, HDA.EXE took no interrupt and did not wake: (48, 47)
+22:37:38 [primary] the 3 s tone (PLAY took 3.2 s): 143 interrupts delivered, 143 wake-ups (1.0.0 polled: ~1580)
+22:37:38 [primary] ok   playing, HDA.EXE woke on its MSI: 143 interrupts, 143 wake-ups
+22:37:54 [primary] ok   after the sounds ended, no interrupt and no wake-up in 3 s: (439, 446)
+22:37:56 [primary] heard 3.01 s at 0.06 s: 440 Hz, rms 11579
+22:37:56 [primary] heard 3.00 s at 3.10 s: 440 Hz, rms 2896
+22:37:56 [primary] heard 3.00 s at 6.17 s: 727 Hz, rms 3921
+22:37:56 [primary] heard 1.00 s at 9.21 s: 880 Hz, rms 11232
+22:37:56 [primary] ok   all four sounds at their pitch, length and loudness; two mixed
+22:38:02 [primary] ok   "HDA.EXE takes the controller's MSI (DRIVER_IRQ)": "drivers: pid 1 takes its device's interrupts (MSI, vector 0x60)"
+22:38:06 [primary] ok   'the restarted HDA.EXE takes the MSI again (D-247)': "drivers: pid 12 takes its device's interrupts (MSI, vector 0x60)"
+22:38:09 [primary] ok   the restarted HDA.EXE played on its MSI: 50 interrupts, 50 wake-ups
+22:38:14 [secondary] ok   "HDA.EXE takes the controller's MSI (DRIVER_IRQ)": "drivers: pid 1 takes its device's interrupts (MSI, vector 0x61)"
+22:38:16 [secondary] ok   DRIVERS lists HD Audio, the sound output through HDA.EXE (pid 1) on its MSI
+22:38:27 [secondary] ok   idle 5 s, HDA.EXE took no interrupt and did not wake: (51, 51)
+22:38:32 [secondary] the 3 s tone (PLAY took 3.2 s): 143 interrupts delivered, 143 wake-ups (1.0.0 polled: ~1606)
+22:38:32 [secondary] ok   playing, HDA.EXE woke on its MSI: 143 interrupts, 143 wake-ups
+22:38:48 [secondary] ok   after the sounds ended, no interrupt and no wake-up in 3 s: (433, 443)
+22:38:51 [secondary] heard 3.01 s at 0.06 s: 440 Hz, rms 11584
+22:38:51 [secondary] heard 3.00 s at 3.12 s: 440 Hz, rms 2895
+22:38:51 [secondary] heard 3.00 s at 6.20 s: 704 Hz, rms 3869
+22:38:51 [secondary] heard 0.99 s at 9.23 s: 880 Hz, rms 11234
+22:38:51 [secondary] ok   all four sounds at their pitch, length and loudness; two mixed
+22:38:57 [secondary] ok   "HDA.EXE takes the controller's MSI (DRIVER_IRQ)": "drivers: pid 1 takes its device's interrupts (MSI, vector 0x61)"
+22:39:01 [secondary] ok   'the restarted HDA.EXE takes the MSI again (D-247)': "drivers: pid 12 takes its device's interrupts (MSI, vector 0x61)"
+22:39:04 [secondary] ok   the restarted HDA.EXE played on its MSI: 50 interrupts, 50 wake-ups

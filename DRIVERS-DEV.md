@@ -1,4 +1,3 @@
-Run in progress: started 2026-11-13T21:59Z
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -66,6 +65,28 @@ FREEHOLD, with its own decision and gate.
 
 ## Where things stand
 
+- 2026-11-13 (run 8): **HD Audio on its MSI (FREEHOLD D-247): `HDA.EXE`
+  1.1.0-1** (release `v6`, built from `9267a84` against FREEHOLD
+  `a7e80e2`; the other four zips v5's byte for byte). No kernel change:
+  D-242's `DRIVER_IRQ`/`DRIVER_WAIT` sufficed. After registering as the
+  sound output the driver takes the controller's MSI and enables only the
+  output stream's interrupt (INTCTL GIE + its stream bit; CIE off, the
+  command rings stay polled). The lent ring is played in ~20 ms pieces
+  (`bdl_entries`: a power of two 4–64; 16 × 4 KiB at 48 kHz), each BDL
+  entry with IOC, the stream with IOCE; playing, it sleeps in
+  `DRIVER_WAIT(100 ms)`, clears SD_STS (BCIS/FIFOE/DESE) before reading
+  LPIB, and calls `SOUND_PLAYED` as before. No MSI (or an older kernel):
+  polled every 2 ms as 1.0.0. Status line `interrupts (MSI)` / `polled`.
+  Measured: a 3 s tone took 144 interrupts and 144 wake-ups (1.0.0:
+  ~1,600 polls); idle, none. Gates: stage 9 (both machines; every
+  recording check as it was) + the boot log's MSI line, the DRIVERS
+  status, 5 s idle before and 3 s after with no interrupt or wake-up,
+  ≥ 100 interrupts for the 3 s tone with wake-ups ≤ interrupts + margin;
+  9b: the driver restarted by `DRIVERS /START` takes the MSI again and
+  plays the chime on it. Stages 1, 4, 5, 9, 13, 16 pass
+  (`evidence/D-247-freehold.txt`; FREEHOLD `8752077`). Seen: QEMU's intel-hda sends an MSI on
+  every register write while a status bit is set, so the driver issues no
+  codec commands while playing (it never did).
 - 2026-11-13 (run 7): **Interrupts delivered to user-mode drivers (FREEHOLD
   D-242); `VIRTNET.EXE` 1.1.0-1 on its MSI-X interrupt** (release `v5`;
   the other four zips v4's byte for byte). The kernel gained, for every
@@ -274,14 +295,12 @@ FREEHOLD, with its own decision and gate.
 
 ## Next, in order
 
-1. HDA.EXE on its MSI (D-242's calls; QEMU's ich9-intel-hda has MSI):
-   the stream's interrupt on buffer completion (BDL IOC + SD IOCE, INTCTL
-   SIE/GIE) instead of the 2 ms position poll while playing; gate stage 9
-   (both machines, 9b) with the recording checks as they are, plus the
-   MSI line and fewer wake-ups while playing. Then E1000.EXE on MSI where
-   the card has it — first check E1000.EXE really drives QEMU's `e1000e`
-   (82574L, 8086:10D3, in its catalog but never gated), add a stage 16
-   machine for it, then MSI there (the 8254x in QEMU have none).
+1. E1000.EXE on MSI where the card has it — first check E1000.EXE really
+   drives QEMU's `e1000e` (82574L, 8086:10D3, in its catalog but never
+   gated; its registers differ from the 8254x in places: EIAC/IAM, the
+   extended interrupt and receive descriptor formats are optional), add a
+   stage 16 machine for it (`user_nic_checks`), then MSI or MSI-X there
+   (the 82574L has both; the 8254x in QEMU have none).
 2. INTx for drivers (E1000 on 8254x, RTL8139): needs the firmware's PCI
    routing (ACPI `_PRT` is AML; the kernel has no AML interpreter; q35's
    Interrupt Line holds the PIC IRQ, not the I/O APIC input). A design
@@ -310,7 +329,7 @@ FREEHOLD, with its own decision and gate.
 ## Waiting on the owner
 
 - Sign the online driver catalog, `CATALOG.TXT` at the top of this
-  repository (now release v5's, addresses into `releases/v5/`); machines read
+  repository (now release v6's, addresses into `releases/v6/`); machines read
   it with `DRIVERS /UPDATE` and at boot (FREEHOLD D-219) and refuse it
   unsigned. In a checkout of this repository, `cargo drivers sign` prints
   the exact lines (two `openssl` lines — sign, then verify against
@@ -341,3 +360,4 @@ FREEHOLD, with its own decision and gate.
 - 2026-11-13 run 5: VIRTNET.EXE (virtio-net in user mode) built here, release v3; FREEHOLD gains DRIVER_CONFIG + 8/16-bit BAR access, pins v3, the built-in virtio-net removed (D-231); gates 1/4/5/16 pass.
 - 2026-11-13 run 6: the sound bridge (DRIVER_SOUND) and HDA.EXE built here, release v4; the built-in HD Audio removed, the kernel keeps the mixer (D-238); gates 1/4/5/9/13/16 pass.
 - 2026-11-13 run 7: interrupts delivered to user-mode drivers — DRIVER_IRQ (MSI/MSI-X on a vector of the driver's) and DRIVER_WAIT (D-242); VIRTNET 1.1.0-1 on MSI-X, release v5; gates 1/4/5/9/16 pass.
+- 2026-11-13 run 8: HDA.EXE 1.1.0 on its MSI (an interrupt per ~20 ms piece instead of a 2 ms poll), release v6, FREEHOLD pins v6 (D-247); gates 1/4/5/9/13/16 pass.
