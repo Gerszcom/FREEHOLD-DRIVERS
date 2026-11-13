@@ -1,4 +1,3 @@
-Run in progress: started 2026-11-13T12:21Z
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -66,6 +65,32 @@ FREEHOLD, with its own decision and gate.
 
 ## Where things stand
 
+- 2026-11-13 (run 2): **Part 1, item 4 mostly done: the downloader**
+  (FREEHOLD D-219). `DRIVERS.EXE` (a fourth program of FREEHOLD's std
+  `get` crate; COMMAND.COM's `DRIVERS` runs it when given switches):
+  `DRIVERS /UPDATE [/Y]`, `/CHECK`, `/BACK name`, `/BOOT` (AUTOEXEC.BAT's
+  visible line, after `UPDATE /BOOT`), `/C:url`; `CONFIG.SYS`
+  `DRIVERS=AUTO|ASK|MANUAL` (unset: installed ASK, live AUTO — but live
+  installs nothing yet) and `DRIVERCATALOG=` (default this repository's
+  `main/CATALOG.TXT`). Catalog believed only with `CATALOG.SIG` by a key in
+  `C:\FREEHOLD\RELEASE.KEY`; zips by length + SHA-256; replaced driver kept
+  in `C:\DRIVERS\OLD`; the driver's lines put first in the image's
+  `C:\DRIVERS\CATALOG.TXT`; runs from the next restart. The kernel's
+  `DRIVERS` report now ends with every PCI function and what drives it
+  (`built-in`, a driver file, `none`) — what DRIVERS.EXE matches. Gated on
+  stage 16's new `drvdl` machine (e1000 network + an RTL8139 nothing drives;
+  test catalog + test key): forged catalog refused, bad hash refused
+  leaving nothing, a driver for a device nothing local drives found and
+  installed, MANUAL silent, ASK asks (once a day), AUTO installs at boot
+  from the AUTOEXEC line saying what changed with the old kept, the newer
+  one running after a restart, `/BACK` (evidence `evidence/D-219-freehold.txt`,
+  FREEHOLD `validation/stage-16/`; FREEHOLD `4c705e0`). Stages 1, 4, 5, 16 pass.
+- Here: the online catalog is `CATALOG.TXT` at the repository root (release
+  v1's, addresses `releases/v1/...`), written by the new `cargo drivers
+  current N` (and by `release N`); `cargo drivers sign` now prints the steps
+  to sign that root catalog (`CATALOG.SIG`). It is unsigned until the owner
+  signs it, and his key is not in FREEHOLD's image yet, so real machines
+  say nothing at boot.
 - 2026-11-13 (live, the owner): "you made it build on Linux when I use
   Windows and FREEHOLD". The bash/Python scripts (`tools/build.sh`,
   `package.py`, `release.sh`) are replaced by `tools/drvtool`, a std-only
@@ -119,45 +144,41 @@ FREEHOLD, with its own decision and gate.
 
 ## Next, in order
 
-1. The online catalog's address and layout, then the downloader. Decide
-   (record in D-216): the catalog a machine reads is
-   `https://raw.githubusercontent.com/Gerszcom/FREEHOLD-DRIVERS/main/CATALOG.TXT`
-   + `CATALOG.SIG` at the repository root (the latest release's catalog,
-   addresses `releases/vN/NAME-VER.ZIP`), written by `cargo drivers release`;
-   `CONFIG.SYS` `DRIVERS=AUTO|ASK|MANUAL` and a `DRIVERCATALOG=` (or
-   reuse `CATALOG=`'s pattern) line. Then the program: `DRIVERS` is a
-   COMMAND.COM built-in (`programs/command/src/builtins.rs:90`,
-   `sys::drivers_report`); `DRIVERS /UPDATE`, `/BACK NAME`, `/BOOT` should
-   run a std program built like UPDATE (`std-programs/get`, a fourth
-   program of that crate: its HTTPS, signature check against
-   `C:\FREEHOLD\RELEASE.KEY`, zip unpacking). Install = new files beside,
-   old kept (e.g. `C:\DRIVERS\OLD\NAME.*`), the image catalog's line for
-   that driver added/updated; the kernel starts drivers only at boot, so a
-   new driver runs after a restart (say so). Watch UPDATE (D-212): it
-   replaces `C:\DRIVERS` wholesale, carrying "the owner's files" — a
-   downloaded driver must survive an UPDATE (or UPDATE must keep the newer
-   driver); design that with it. Gate on stage 16 with a test catalog
-   served by the stage's HTTPS test server and a test key: forged catalog
-   refused, bad hash refused leaving nothing, newer driver installed with
-   the old kept and running after restart, `/BACK`, a driver for a device
-   nothing local drives (e.g. an RTL8139 machine whose image catalog lacks
-   the line) found and installed, AUTO's visible AUTOEXEC.BAT line, ASK
-   asking, MANUAL silent.
-2. Part 2, network drivers first (e1000, virtio-net as user-mode drivers:
+1. A newly installed driver started at once (FREEHOLD kernel work, its own
+   decision, general: "start the catalog's driver for an unclaimed
+   device now", and for a replaced driver, end the running one and start
+   the new — a call or a `DRIVERS /START name` path through the kernel,
+   which owns PCI claims). Lets live media use DRIVERS=AUTO (D-219 left it
+   installing nothing) and makes AUTO's result immediate. Gate on `drvdl`.
+2. A downloaded driver keeps its place across UPDATE (D-212 replaces
+   `C:\DRIVERS` wholesale, carrying only files the release lacks, and the
+   release's catalog wins): in UPDATE's install, for each driver in the old
+   `C:\DRIVERS` whose INF version is newer than the release's (or that the
+   release lacks), keep its files and catalog lines (the code is in the same
+   crate: `drivers.rs` can expose the INF/catalog helpers). Gate on stage
+   16's update check or `drvdl`.
+3. "Fuller" drivers (a different driver for an already-driven device):
+   needs a way to say which is fuller — e.g. an INF `Replaces=NAME` key that
+   the catalog carries; decide with the RTX work (NVRTX basic vs. full).
+4. Part 2, network drivers first (e1000, virtio-net as user-mode drivers:
    check the DRIVER_* calls suffice — interrupts aren't delivered, drivers
    poll; e1000 is the gates' NIC on most machines, so the built-in can only
    go once the user-mode one passes every network gate). Then HDA sound.
-3. The boot-path PROPOSAL (storage, USB, boot keyboard/console): loading a
+5. The boot-path PROPOSAL (storage, USB, boot keyboard/console): loading a
    driver before C: is mounted — write it in DECISIONS.md as a PROPOSAL.
 
 ## Waiting on the owner
 
-- Sign release v1's driver catalog (nothing else is blocked on it yet; a
-  machine will refuse an unsigned catalog). In a checkout of this
-  repository, `cargo drivers sign 1` prints the exact lines (two `openssl`
-  lines — sign, then verify against RELEASE.KEY — and the commit); they
-  paste as is into PowerShell or cmd. It also prints the optional `gh
-  release create` line, since these sessions can't create GitHub releases.
+- Sign the online driver catalog, `CATALOG.TXT` at the top of this
+  repository (release v1's, addresses into `releases/v1/`); machines read
+  it with `DRIVERS /UPDATE` and at boot (FREEHOLD D-219) and refuse it
+  unsigned. In a checkout of this repository, `cargo drivers sign` prints
+  the exact lines (two `openssl` lines — sign, then verify against
+  RELEASE.KEY — and the commit); they paste as is into PowerShell or cmd.
+  (This replaces the earlier request to sign `releases/v1/CATALOG.TXT`:
+  the root one is what machines read.) Nothing else is blocked on it; for
+  real machines to check it, your `RELEASE.KEY` must also be in FREEHOLD's
+  `system/FREEHOLD/` (D-212).
   Answer:
 - The NVIDIA RTX driver lives in two places: FREEHOLD's `programs/nvrtx`
   (merged from the RTX work) — now moved here as `drivers/nvrtx` with its
@@ -173,3 +194,4 @@ FREEHOLD, with its own decision and gate.
 - 2026-11-13: brief and goal written (from the owner's answers in chat).
 - 2026-11-13 run 1: drivers moved here (RTL8139, NVRTX), build/package/release scripts, release v1 published as releases/v1; FREEHOLD builds C:\DRIVERS from the pinned v1 zips (D-215); gates 1/4/5/16 pass.
 - 2026-11-13 (live, owner's request): build/package/release made cross-platform — `cargo drivers` (tools/drvtool, std-only Rust) replaces the bash/Python scripts (D-216).
+- 2026-11-13 run 2: the downloader — DRIVERS.EXE (/UPDATE, /CHECK, /BACK, /BOOT per DRIVERS=), the PCI list in DRIVERS, the online CATALOG.TXT here (cargo drivers current N); gated on stage 16 drvdl (D-219); gates 1/4/5/16 pass.
