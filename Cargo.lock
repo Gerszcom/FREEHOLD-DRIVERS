@@ -42,3 +42,10 @@ version = "1.0.0"
 dependencies = [
  "freehold-rt",
 ]
+
+[[package]]
+name = "virtnet"
+version = "1.0.0"
+dependencies = [
+ "freehold-rt",
+]

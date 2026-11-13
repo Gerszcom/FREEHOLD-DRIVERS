@@ -20,6 +20,7 @@ members = [
     "drivers/rtl8139",
     "drivers/e1000",
     "drivers/nvrtx",
+    "drivers/virtnet",
     "crates/freehold-rtx",
     "tools/drvtool",
 ]
@@ -29,6 +30,7 @@ default-members = [
     "drivers/rtl8139",
     "drivers/e1000",
     "drivers/nvrtx",
+    "drivers/virtnet",
 ]
 
 [workspace.package]

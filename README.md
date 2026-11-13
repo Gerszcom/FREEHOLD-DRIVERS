@@ -23,6 +23,7 @@ system calls that act on it alone, so a faulty driver ends only itself
 |---|---|---|
 | `RTL8139` (`drivers/rtl8139`) | `10EC:8139` network | Realtek RTL8139 Ethernet (D-127) |
 | `E1000` (`drivers/e1000`) | `8086:100C`, `100E`, `100F`, `1010`, `1011`, `1026`, `1027`, `1076`, `10D3` network | Intel PRO/1000 (8254x, 82574L) Ethernet: the kernel's built-in e1000 driver moved to user mode (D-224) |
+| `VIRTNET` (`drivers/virtnet`) | `1AF4:1000`, `1041` network | virtio network device over the modern (virtio 1.x) PCI transport: the kernel's built-in virtio-net driver moved to user mode (D-231) |
 | `NVRTX` (`drivers/nvrtx`) | `10DE:*` display | NVIDIA GeForce RTX 20–50: brings the card up to its GSP firmware (D-193..D-197); its logic is `crates/freehold-rtx`, mirrored from Gerszcom/FREEHOLD-RTX |
 
 Each driver's `DRIVER.INF` names it, its version, its file and the devices

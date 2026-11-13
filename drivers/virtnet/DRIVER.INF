@@ -1,0 +1,17 @@
+; VIRTNET.EXE's description, for cargo drivers: it goes into the zip as
+; VIRTNET.INF (with Source= added) and into CATALOG.TXT as one line per
+; [Devices] entry. Raise Version= for every change that is published.
+; The devices of the kernel's built-in virtio-net driver, which this driver
+; replaces (D-231): the transitional device (1000) and the modern-only one
+; (1041), both driven through the modern (virtio 1.x) interface.
+[Driver]
+Name=VIRTNET
+Version=1.0.0-1
+File=VIRTNET.EXE
+Description=virtio network device (virtio 1.x)
+Licence=MIT
+Basic=Yes
+
+[Devices]
+1AF4:1000 network
+1AF4:1041 network
