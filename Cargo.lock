@@ -7,6 +7,13 @@ name = "drvtool"
 version = "1.0.0"
 
 [[package]]
+name = "e1000"
+version = "1.0.0"
+dependencies = [
+ "freehold-rt",
+]
+
+[[package]]
 name = "freehold-abi"
 version = "1.0.0"
 

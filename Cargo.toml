@@ -18,6 +18,7 @@
 resolver = "2"
 members = [
     "drivers/rtl8139",
+    "drivers/e1000",
     "drivers/nvrtx",
     "crates/freehold-rtx",
     "tools/drvtool",
@@ -26,6 +27,7 @@ members = [
 # .cargo/config.toml); the tool is built for the host by its alias.
 default-members = [
     "drivers/rtl8139",
+    "drivers/e1000",
     "drivers/nvrtx",
 ]
 

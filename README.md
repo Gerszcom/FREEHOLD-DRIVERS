@@ -22,10 +22,11 @@ system calls that act on it alone, so a faulty driver ends only itself
 | Driver | Devices | What it is |
 |---|---|---|
 | `RTL8139` (`drivers/rtl8139`) | `10EC:8139` network | Realtek RTL8139 Ethernet (D-127) |
+| `E1000` (`drivers/e1000`) | `8086:100C`, `100E`, `100F`, `1010`, `1011`, `1026`, `1027`, `1076`, `10D3` network | Intel PRO/1000 (8254x, 82574L) Ethernet: the kernel's built-in e1000 driver moved to user mode (D-224) |
 | `NVRTX` (`drivers/nvrtx`) | `10DE:*` display | NVIDIA GeForce RTX 20–50: brings the card up to its GSP firmware (D-193..D-197); its logic is `crates/freehold-rtx`, mirrored from Gerszcom/FREEHOLD-RTX |
 
 Each driver's `DRIVER.INF` names it, its version, its file and the devices
-it covers. Both moved here from FREEHOLD's `programs/` (with
+it covers. RTL8139 and NVRTX moved here from FREEHOLD's `programs/` (with
 `crates/freehold-rtx`) in D-215; their earlier history is FREEHOLD's.
 
 ## Building
@@ -74,7 +75,9 @@ and a clean sibling FREEHOLD into `releases\vN\` — every driver's zip,
 `CATALOG.TXT` and `SHA256SUMS` — which is committed: the push publishes it,
 at `https://raw.githubusercontent.com/Gerszcom/FREEHOLD-DRIVERS/<commit>/releases/vN/`
 (as FREEHOLD-APPS serves its zips from its repository). A published release
-is never rebuilt; the next is N+1. `.gitattributes` keeps git from changing
+is never rebuilt; the next is N+1. Neither is a published version: a driver
+whose `Version=` an earlier release already published keeps that release's
+zip in the new one, byte for byte (raise `Version=` to publish a change). `.gitattributes` keeps git from changing
 a release's bytes (no line-ending conversion, whatever `core.autocrlf` says).
 The zips need no signature (FREEHOLD pins the basic ones by SHA-256, and a
 machine checks each against the catalog).

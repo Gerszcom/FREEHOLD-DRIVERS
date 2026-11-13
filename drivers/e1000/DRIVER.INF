@@ -1,0 +1,23 @@
+; E1000.EXE's description, for cargo drivers: it goes into the zip as
+; E1000.INF (with Source= added) and into CATALOG.TXT as one line per
+; [Devices] entry. Raise Version= for every change that is published.
+; The devices of the kernel's built-in e1000 driver, which this driver is
+; to replace, and the 82544GC (100C), which the built-in never covered.
+[Driver]
+Name=E1000
+Version=1.0.0-1
+File=E1000.EXE
+Description=Intel PRO/1000 (8254x, 82574L) Ethernet
+Licence=MIT
+Basic=Yes
+
+[Devices]
+8086:100C network
+8086:100E network
+8086:100F network
+8086:1010 network
+8086:1011 network
+8086:1026 network
+8086:1027 network
+8086:1076 network
+8086:10D3 network

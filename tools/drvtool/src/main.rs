@@ -39,7 +39,7 @@ const REPO: &str = "Gerszcom/FREEHOLD-DRIVERS";
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let result = match args.first().map(String::as_str) {
-        Some("build") => build(&root()).map(|_| ()),
+        Some("build") => build(&root(), false).map(|_| ()),
         Some("release") => release_number(&args).and_then(|n| release(&root(), n)),
         Some("current") => release_number(&args).and_then(|n| current(&root(), n)),
         Some("sign") => {
@@ -106,8 +106,10 @@ struct Driver {
 }
 
 /// Build every driver for the UEFI target and package it into `dist/`.
-/// Returns the dist directory.
-fn build(root: &Path) -> Result<PathBuf> {
+/// Returns the dist directory. For a release (`published`), a driver whose
+/// version an earlier release already published keeps that release's zip,
+/// byte for byte: a published version is never rebuilt.
+fn build(root: &Path, published: bool) -> Result<PathBuf> {
     let freehold = freehold(root)?;
     let drivers = read_drivers(root)?;
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
@@ -145,7 +147,7 @@ fn build(root: &Path) -> Result<PathBuf> {
         fs::remove_dir_all(&dist).map_err(|e| format!("{}: {e}", dist.display()))?;
     }
     fs::create_dir_all(&dist).map_err(|e| format!("{}: {e}", dist.display()))?;
-    package(root, &freehold, &drivers, &dist)?;
+    package(root, &freehold, &drivers, &dist, published)?;
     Ok(dist)
 }
 
@@ -226,7 +228,7 @@ fn check_class(c: &str) -> Option<String> {
         .then_some(c)
 }
 
-fn package(root: &Path, freehold: &Path, drivers: &[Driver], dist: &Path) -> Result<()> {
+fn package(root: &Path, freehold: &Path, drivers: &[Driver], dist: &Path, published: bool) -> Result<()> {
     let source = format!(
         "https://github.com/Gerszcom/FREEHOLD-DRIVERS {}, built against https://github.com/Gerszcom/FREEHOLD {}",
         commit(root),
@@ -239,7 +241,21 @@ fn package(root: &Path, freehold: &Path, drivers: &[Driver], dist: &Path) -> Res
         let exe = fs::read(&exe_path).map_err(|e| format!("{}: {e}", exe_path.display()))?;
         let inf = installed_inf(d, &source);
         let zname = format!("{}-{}.ZIP", d.name, d.version);
-        let zip = zip_stored(&mut [(d.file.clone(), exe), (format!("{}.INF", d.name), inf.into_bytes())]);
+        let earlier = if published { published_zip(root, &zname) } else { None };
+        let zip = match earlier {
+            Some((tag, zip)) => {
+                if !contains(&zip, &exe) {
+                    println!(
+                        "drivers: note: {} builds differently from {tag}'s {zname}; that published \
+                         zip is kept (raise Version= to publish the change)",
+                        d.file
+                    );
+                }
+                println!("drivers: {zname} is {tag}'s, unchanged");
+                zip
+            }
+            None => zip_stored(&mut [(d.file.clone(), exe), (format!("{}.INF", d.name), inf.into_bytes())]),
+        };
         let digest = hex(&sha256(&zip));
         write(&dist.join(&zname), &zip)?;
         let _ = writeln!(sums, "{digest}  {zname}");
@@ -272,6 +288,27 @@ fn package(root: &Path, freehold: &Path, drivers: &[Driver], dist: &Path) -> Res
     write(&dist.join("SHA256SUMS"), sums.as_bytes())?;
     println!("drivers: dist\\ — {} zip(s), CATALOG.TXT (unsigned), SHA256SUMS", drivers.len());
     Ok(())
+}
+
+/// The newest earlier release's `zname`, if one published it:
+/// `(tag, bytes)`.
+fn published_zip(root: &Path, zname: &str) -> Option<(String, Vec<u8>)> {
+    let dir = root.join("releases");
+    let mut tags: Vec<u32> = fs::read_dir(&dir)
+        .ok()?
+        .flatten()
+        .filter_map(|e| e.file_name().to_str()?.strip_prefix('v')?.parse().ok())
+        .collect();
+    tags.sort_unstable();
+    tags.iter().rev().find_map(|n| {
+        let bytes = fs::read(dir.join(format!("v{n}")).join(zname)).ok()?;
+        Some((format!("v{n}"), bytes))
+    })
+}
+
+/// Whether `hay` holds `needle` (a stored zip holds its files' bytes as is).
+fn contains(hay: &[u8], needle: &[u8]) -> bool {
+    !needle.is_empty() && hay.windows(needle.len()).any(|w| w == needle)
 }
 
 /// The INF as installed: one line on what it is in place of the
@@ -314,7 +351,7 @@ fn release(root: &Path, n: u32) -> Result<()> {
             ));
         }
     }
-    let dist = build(root)?;
+    let dist = build(root, true)?;
     fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     for entry in fs::read_dir(&dist).map_err(|e| e.to_string())?.flatten() {
         let to = dir.join(entry.file_name());
