@@ -1,4 +1,3 @@
-Run in progress: started 2026-11-13T13:00Z (live session, on the owner's request: fix D-219's gaps)
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -66,6 +65,21 @@ FREEHOLD, with its own decision and gate.
 
 ## Where things stand
 
+- 2026-11-13 (live, the owner: "fix the gaps"): **D-219's gaps closed
+  (FREEHOLD D-220).** A driver installed runs at once: the kernel's new
+  `DRIVERS_START` call starts the catalog's driver for every device with no
+  running driver; DRIVERS.EXE ends the old driver (KILL), waits, calls it;
+  a restarted network driver keeps its interface number; `DRIVERS /START`
+  restarts an ended driver. Live media installs (until its restart).
+  Fuller drivers: the driver the signed catalog lists first for a device
+  another user-mode driver drives takes its place (`OLD\NAME.WAS`; `/BACK
+  NAME` gives it back). `/BACK` holds the version gone back from
+  (`C:\DRIVERS\HOLD.TXT`) so the boot line won't reinstall it. UPDATE keeps
+  drivers installed online (`C:\DRIVERS\ONLINE.TXT`) unless the release has
+  newer ones. Gated on stage 16 `drvdl` (extended) and `rtl` (`/START` +
+  ping through the same interface); stages 1, 4, 5, 16 pass (evidence
+  `evidence/D-220-freehold.txt`). **Part 1 is now complete except the
+  owner's signature on `CATALOG.TXT`** (and his key in FREEHOLD's image).
 - 2026-11-13 (run 2): **Part 1, item 4 mostly done: the downloader**
   (FREEHOLD D-219). `DRIVERS.EXE` (a fourth program of FREEHOLD's std
   `get` crate; COMMAND.COM's `DRIVERS` runs it when given switches):
@@ -145,27 +159,13 @@ FREEHOLD, with its own decision and gate.
 
 ## Next, in order
 
-1. A newly installed driver started at once (FREEHOLD kernel work, its own
-   decision, general: "start the catalog's driver for an unclaimed
-   device now", and for a replaced driver, end the running one and start
-   the new — a call or a `DRIVERS /START name` path through the kernel,
-   which owns PCI claims). Lets live media use DRIVERS=AUTO (D-219 left it
-   installing nothing) and makes AUTO's result immediate. Gate on `drvdl`.
-2. A downloaded driver keeps its place across UPDATE (D-212 replaces
-   `C:\DRIVERS` wholesale, carrying only files the release lacks, and the
-   release's catalog wins): in UPDATE's install, for each driver in the old
-   `C:\DRIVERS` whose INF version is newer than the release's (or that the
-   release lacks), keep its files and catalog lines (the code is in the same
-   crate: `drivers.rs` can expose the INF/catalog helpers). Gate on stage
-   16's update check or `drvdl`.
-3. "Fuller" drivers (a different driver for an already-driven device):
-   needs a way to say which is fuller — e.g. an INF `Replaces=NAME` key that
-   the catalog carries; decide with the RTX work (NVRTX basic vs. full).
-4. Part 2, network drivers first (e1000, virtio-net as user-mode drivers:
+1. Part 2, network drivers first (e1000, virtio-net as user-mode drivers:
    check the DRIVER_* calls suffice — interrupts aren't delivered, drivers
    poll; e1000 is the gates' NIC on most machines, so the built-in can only
    go once the user-mode one passes every network gate). Then HDA sound.
-5. The boot-path PROPOSAL (storage, USB, boot keyboard/console): loading a
+   `DRIVERS_START` and the interface keeping its number (D-220) help:
+   a user-mode e1000 can be restarted without losing the stack.
+2. The boot-path PROPOSAL (storage, USB, boot keyboard/console): loading a
    driver before C: is mounted — write it in DECISIONS.md as a PROPOSAL.
 
 ## Waiting on the owner
@@ -196,3 +196,4 @@ FREEHOLD, with its own decision and gate.
 - 2026-11-13 run 1: drivers moved here (RTL8139, NVRTX), build/package/release scripts, release v1 published as releases/v1; FREEHOLD builds C:\DRIVERS from the pinned v1 zips (D-215); gates 1/4/5/16 pass.
 - 2026-11-13 (live, owner's request): build/package/release made cross-platform — `cargo drivers` (tools/drvtool, std-only Rust) replaces the bash/Python scripts (D-216).
 - 2026-11-13 run 2: the downloader — DRIVERS.EXE (/UPDATE, /CHECK, /BACK, /BOOT per DRIVERS=), the PCI list in DRIVERS, the online CATALOG.TXT here (cargo drivers current N); gated on stage 16 drvdl (D-219); gates 1/4/5/16 pass.
+- 2026-11-13 (live, owner's request): D-219's gaps fixed — drivers run at once (DRIVERS_START), fuller drivers by catalog order, /BACK holds, UPDATE keeps online drivers, live media installs, DRIVERS /START (D-220); gates 1/4/5/16 pass.
