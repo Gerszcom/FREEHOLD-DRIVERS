@@ -21,6 +21,7 @@ members = [
     "drivers/e1000",
     "drivers/nvrtx",
     "drivers/virtnet",
+    "drivers/hda",
     "crates/freehold-rtx",
     "tools/drvtool",
 ]
@@ -31,6 +32,7 @@ default-members = [
     "drivers/e1000",
     "drivers/nvrtx",
     "drivers/virtnet",
+    "drivers/hda",
 ]
 
 [workspace.package]

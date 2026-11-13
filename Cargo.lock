@@ -29,6 +29,13 @@ name = "freehold-rtx"
 version = "0.1.0"
 
 [[package]]
+name = "hda"
+version = "1.0.0"
+dependencies = [
+ "freehold-rt",
+]
+
+[[package]]
 name = "nvrtx"
 version = "1.0.0"
 dependencies = [

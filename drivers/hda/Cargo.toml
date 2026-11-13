@@ -1,0 +1,15 @@
+[package]
+name = "hda"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "hda"
+path = "src/main.rs"
+test = false
+bench = false
+
+[dependencies]
+freehold-rt = { path = "../../../freehold/programs/rt" }
