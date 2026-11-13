@@ -1,0 +1,100 @@
+FREEHOLD D-231 — virtio-net in user mode (VIRTNET.EXE, release v3), the built-in removed.
+FREEHOLD tree: 74bd158 (DRIVER_CONFIG) + the move (tools/drivers.pin -> release v3 at 18469e5).
+Image built by tools/build.sh with VIRTNET-1.0.0-1.ZIP = releases/v3's (sha256 85ed4079...). 2026-11-13T17:45Z
+
+== python3 tools/gate.py 1
+17:28:33 [primary] PASS stage 1
+17:28:42 [secondary] PASS stage 1
+17:28:42 gate 1: PASS
+
+== python3 tools/gate.py 4
+17:30:23 [primary] PASS stage 4
+17:31:59 [secondary] PASS stage 4
+17:31:59 gate 4: PASS
+
+== python3 tools/gate.py 5
+17:32:17 [primary] PASS stage 5
+17:32:34 [secondary] PASS stage 5
+17:32:42 [nvme] PASS stage 5
+17:32:54 [primary-reboot] PASS stage 5
+17:33:11 [primary-up] PASS stage 5
+17:33:11 gate 5: PASS
+
+== python3 tools/gate.py 16
+17:34:08 [primary] PASS stage 16
+17:35:13 [secondary] PASS stage 16
+17:35:36 [rtl] PASS stage 16
+17:36:02 [e1000u] PASS stage 16
+17:37:13 [drvdl] PASS stage 16
+17:37:39 [setup] PASS stage 16
+17:37:55 [cdrom] PASS stage 16
+17:38:11 [usbcd] PASS stage 16
+17:38:26 [disks] PASS stage 16
+17:38:33 [reinstall] PASS stage 16
+17:38:37 [installed] PASS stage 16
+17:38:49 [claim] PASS stage 16
+17:39:32 [install] PASS stage 16
+17:39:33 gate 16: PASS
+
+== python3 tools/gate.py 16 vnetm (added after the full run)
+17:43:54 [vnetm] ok   'process module up': 'process: task 0 is the kernel'
+17:43:54 [vnetm] ok   'C: mounted': 'fs: C: ExFat "FREEHOLD"'
+17:43:54 [vnetm] ok   'COMMAND.COM started': 'shell: C:\\FREEHOLD\\COMMAND.COM started as pid 2'
+17:43:56 [vnetm] ok   'C:\\> prompt': 'C:\\>'
+17:43:56 [vnetm] ok   'the kernel starts the user-mode VIRTNET driver from the catalog for a modern-only virtio-net': 'drivers: started VIRTNET.EXE for 1af4:1041 at 00:02.0 as pid 1'
+17:43:56 [vnetm] ok   'the driver brings the card up as a network interface, with the MAC the card holds': 'drivers: pid 1 up as a network interface, MAC 52:54:00:12:34:56'
+17:43:56 [vnetm] ok   no built-in driver touched it
+17:44:00 [vnetm] ok   'C:\\DRIVERS\\VIRTNET.INF: the driver is version 1.0.0-1': 'Version=1.0.0-1'
+17:44:00 [vnetm] ok   "the image's VIRTNET came from FREEHOLD-DRIVERS' pinned release, built from a named commit": 'Source=https://github.com/Gerszcom/FREEHOLD-DRIVERS d2d272200a7af2edfcddee0dd6399f55ed1a419d, built agai
+17:44:02 [vnetm] ok   'DRIVERS lists the user-mode VIRTNET driver as running': 'VIRTNET.EXE   1af4:1041 at 00:02.0  pid 1    running'
+17:44:02 [vnetm] ok   'with the status it posted: the link is up': 'status: link up, polled'
+17:44:03 [vnetm] ok   'DHCP gets an address through the user-mode VIRTNET driver': '10.0.2.15'
+17:44:06 [vnetm] ok   'the host answers ping through the user-mode driver': 'Reply from 10.0.2.2'
+17:44:08 [vnetm] ok   a megabyte comes over TCP through the user-mode driver
+17:44:08 [vnetm] ok   every byte of it
+17:44:10 [vnetm] ok   and again
+17:44:11 [vnetm] ok   the two copies match
+17:44:11 [vnetm] ok   the copies removed, so the next boot starts clean
+17:44:11 [vnetm] ok   (both)
+17:44:12 [vnetm] ok   "the killed driver's device is stopped": 'drivers: pid 1 ended, its device stopped'
+17:44:15 [vnetm] ok   "the prompt is unaffected by the driver's death": 'the prompt is still here'
+17:44:15 [vnetm] ok   DRIVERS /START starts it again
+17:44:17 [vnetm] ok   the host answers ping again: the new driver took the old one's interface
+17:44:18 [vnetm] ok   'shutdown: bye': 'shutdown: bye'
+17:44:18 [vnetm] ok   "kernel enters S5 through the FADT's PM1 control": 'power: ACPI S5 (SLP_TYP 0/0)'
+17:44:18 [vnetm] ok   machine powered off through ACPI (QEMU exit code 0)
+17:44:18 [vnetm] PASS stage 16
+17:44:18 gate 16: PASS
+
+== python3 tools/gate.py 16 e1000u (its checks now shared with vnetm)
+17:44:48 [e1000u] PASS stage 16
+17:44:48 gate 16: PASS
+
+== stage 16 secondary: the move's checks (from the full run)
+17:33:19 [primary] ok   "AUTOEXEC.BAT's IPCFG /AUTO found the card and got an address over it": 'net: dhcp 10.0.2.15/24'
+17:33:19 [primary] ok   the network is up
+17:33:20 [primary] ok   GET lists the catalog named first in CONFIG.SYS, over HTTPS
+17:34:14 [secondary] ok   no built-in virtio-net: VIRTNET.EXE (pid 1) started for 1af4:1000 and its interface up before the shell
+17:34:15 [secondary] ok   DRIVERS lists VIRTNET.EXE running for the virtio-net card
+17:34:15 [secondary] ok   ... interface 0 is VIRTNET.EXE's, link up, and the PCI list names it
+17:34:16 [secondary] ok   TASKS shows VIRTNET.EXE as a driver
+17:34:16 [secondary] ok   "AUTOEXEC.BAT's IPCFG /AUTO found the card and got an address over it": 'net: dhcp 10.0.2.15/24'
+17:34:16 [secondary] ok   the network is up
+17:34:17 [secondary] ok   GET lists the catalog named first in CONFIG.SYS, over HTTPS
+17:36:09 [drvdl] ok   the network is up on the e1000
+17:37:18 [setup] ok   'the one blank disk is chosen, with a warning before it is erased': 'This ERASES disk 0 virtio-blk 00:02.0 (256 MiB) and installs FREEHOLD'
+17:38:18 [disks] ok   the blank disk: empty: 'Disk 0  virtio-blk 00:02.0  256 MiB  Empty'
+17:38:18 [disks] ok   'the network is up (its log line is out of the way)': 'net: dhcp 10.0.2.15'
+17:38:56 [install] ok   'the network is up (its log line is out of the way)': 'net: dhcp 10.0.2.15'
+
+== stage 4 secondary (through VIRTNET.EXE)
+17:31:30 [secondary] ok   60 s idle at the prompt: zero frames sent or received (capture still 24 bytes; aim 3)
+17:31:32 [secondary] ok   DNS: 1 query reached the host's server
+17:31:32 [secondary] ok   GET / from the host: 200, body is C:\WWW\INDEX.HTM (637 bytes)
+17:31:34 [secondary] ok   GET /BIG.TXT: 200, 395901 bytes identical to the file
+17:31:36 [secondary] ok   GET /nothere: 404
+17:31:39 [secondary] ok   still serving after a client disconnected mid-transfer
+17:31:41 [secondary] ok   still serving after CRASH.EXE ran on the console
+17:31:59 [secondary] ok   still serving after CRASH.EXE
+
+Earlier, on a development build of the same driver (before release v3): stage 16 secondary run four times — one FAIL (UPDATE /Y: 'cannot reach 10.0.2.2:18443 (Connection refused)' after smoltcp's 10 s connect timeout), three PASS; stage 4 secondary PASS.
