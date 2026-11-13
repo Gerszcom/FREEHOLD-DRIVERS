@@ -60,14 +60,21 @@ in `CLASS`); `ADDRESS` is relative to the catalog.
 
 ## Releases
 
-`tools/release.sh N --publish` builds from a clean checkout and publishes
-GitHub release `vN` — the zips, `CATALOG.TXT` and `SHA256SUMS` — as a
-prerelease. The zips need no signature (FREEHOLD pins them by SHA-256, and
-a machine checks each against the catalog), but the catalog is trusted only
-with `CATALOG.SIG`, its Ed25519 signature by the owner's release key; the
-script prints the owner's steps (sign, verify, upload, mark latest). The
-online catalog a machine reads is then
-`https://github.com/Gerszcom/FREEHOLD-DRIVERS/releases/latest/download/CATALOG.TXT`.
+`tools/release.sh N` builds from a clean checkout of this repository and a
+clean sibling FREEHOLD into `releases/vN/` — every driver's zip,
+`CATALOG.TXT` and `SHA256SUMS` — which is committed: the push publishes it,
+at `https://raw.githubusercontent.com/Gerszcom/FREEHOLD-DRIVERS/<commit>/releases/vN/`
+(as FREEHOLD-APPS serves its zips from its repository). A published release
+is never rebuilt; the next is N+1. The zips need no signature (FREEHOLD pins
+the basic ones by SHA-256, and a machine checks each against the catalog),
+but the catalog is trusted only with `CATALOG.SIG` beside it, its Ed25519
+signature by the owner's release key; the script prints his steps (sign,
+verify, commit). `tools/release.sh N --publish` also makes the same files a
+GitHub release `vN` (a prerelease until it carries `CATALOG.SIG`).
+
+| Release | Drivers | Built from | Catalog signed |
+|---|---|---|---|
+| `v1` | RTL8139 1.0.0-1, NVRTX 1.0.0-1 | `d497525`, against FREEHOLD `a15e184` | not yet (owner) |
 
 ## Licence
 
