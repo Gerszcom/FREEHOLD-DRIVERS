@@ -1,0 +1,51 @@
+FREEHOLD D-224 — E1000.EXE (FREEHOLD-DRIVERS release v2) gated in FREEHOLD, 2026-11-13T14:48:37Z
+FREEHOLD base 34c8f80 + this change; image built by tools/build.sh with tools/drivers.pin -> releases/v2 at 4f4b4d6
+
+== results (validation/stage-N/result.json)
+stage 1 primary: pass, secondary: pass
+stage 4 primary: pass, secondary: pass
+stage 5 primary: pass, secondary: pass, nvme: pass, primary-reboot: pass, primary-up: pass
+stage 16 primary: pass, secondary: pass, rtl: pass, e1000u: pass, drvdl: pass, setup: pass, cdrom: pass, usbcd: pass, disks: pass, reinstall: pass, installed: pass
+
+== stage 16, the e1000u machine (validation/stage-16/gate.log)
+14:44:57 [e1000u] ok   'process module up': 'process: task 0 is the kernel'
+14:44:57 [e1000u] ok   'C: mounted': 'fs: C: ExFat "FREEHOLD"'
+14:44:57 [e1000u] ok   'COMMAND.COM started': 'shell: C:\\FREEHOLD\\COMMAND.COM started as pid 2'
+14:44:59 [e1000u] ok   'C:\\> prompt': 'C:\\>'
+14:44:59 [e1000u] ok   'the kernel starts the user-mode E1000 driver from the catalog for an e1000 no built-in covers': 'drivers: started E1000.EXE for 8086:100c at 00:02.0 as pid 1'
+14:44:59 [e1000u] ok   'the driver brings the card up as a network interface, with the MAC the card holds': 'drivers: pid 1 up as a network interface, MAC 52:54:00:12:34:56'
+14:44:59 [e1000u] ok   the built-in e1000 driver did not touch it
+14:45:02 [e1000u] ok   'C:\\DRIVERS\\E1000.INF: the driver is version 1.0.0-1': 'Version=1.0.0-1'
+14:45:02 [e1000u] ok   "the image's E1000 came from FREEHOLD-DRIVERS' pinned release, built from a named commit": 'Source=https://github.com/Gerszcom/FREEHOLD-DRIVERS 4d9ec98498449bbfbe017cfb6d156fe83dac7d82, built against'
+14:45:04 [e1000u] ok   'DRIVERS lists the user-mode E1000 driver as running': 'E1000.EXE     8086:100c at 00:02.0  pid 1    running'
+14:45:04 [e1000u] ok   'with the status it posted: the link is up': 'status: link up, polled'
+14:45:06 [e1000u] ok   'DHCP gets an address through the user-mode E1000 driver': '10.0.2.15'
+14:45:08 [e1000u] ok   'the host answers ping through the user-mode driver': 'Reply from 10.0.2.2'
+14:45:10 [e1000u] ok   a megabyte comes over TCP through the user-mode driver
+14:45:11 [e1000u] ok   every byte of it
+14:45:12 [e1000u] ok   and again
+14:45:13 [e1000u] ok   the two copies match
+14:45:13 [e1000u] ok   the copies removed, so the next boot starts clean
+14:45:13 [e1000u] ok   (both)
+14:45:14 [e1000u] ok   "the killed driver's device is stopped": 'drivers: pid 1 ended, its device stopped'
+14:45:17 [e1000u] ok   "the prompt is unaffected by the driver's death": 'the prompt is still here'
+14:45:18 [e1000u] ok   DRIVERS /START starts it again
+14:45:19 [e1000u] ok   the host answers ping again: the new driver took the old one's interface
+14:45:20 [e1000u] ok   'shutdown: bye': 'shutdown: bye'
+14:45:20 [e1000u] ok   "kernel enters S5 through the FADT's PM1 control": 'power: ACPI S5 (SLP_TYP 0/0)'
+14:45:20 [e1000u] ok   machine powered off through ACPI (QEMU exit code 0)
+14:45:20 [e1000u] PASS stage 16
+
+== the serial, the driver's start
+drivers: started E1000.EXE for 8086:100c at 00:02.0 as pid 1
+drivers: pid 1 up as a network interface, MAC 52:54:00:12:34:56
+E1000: 8086:100c at 00:02.0 up, MAC 52:54:00:12:34:56, link up
+C:\>TYPE C:\DRIVERS\E1000.INF
+; E1000.EXE, a FREEHOLD user-mode driver from Gerszcom/FREEHOLD-DRIVERS
+Name=E1000
+File=E1000.EXE
+  interface 0: E1000.EXE (user) at 00:02.0 mac 52:54:00:12:34:56 link up
+User-mode drivers:
+  E1000.EXE     8086:100c at 00:02.0  pid 1    running  Intel PRO/1000 (8254x, 82574L) Ethernet
+  00:02.0  8086:100c  class 0200  E1000.EXE
+Interface 0: E1000.EXE (user) at 00:02.0  mac 52:54:00:12:34:56  link up

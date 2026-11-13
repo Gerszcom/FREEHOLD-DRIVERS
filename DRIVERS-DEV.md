@@ -1,4 +1,3 @@
-Run in progress: started 2026-11-13T14:20Z
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -66,6 +65,21 @@ FREEHOLD, with its own decision and gate.
 
 ## Where things stand
 
+- 2026-11-13 (run 3): **Part 2 begun: `E1000.EXE`, the kernel's e1000
+  driver in user mode** (`drivers/e1000`, 1.0.0-1; FREEHOLD D-224). Same
+  rings and register sequence as `net/e1000.rs`, over `DRIVER_MAP` (BAR0) +
+  `DRIVER_DMA` + the NIC bridge: the existing `DRIVER_*` calls sufficed, no
+  kernel change. Published in release `v2` (with RTL8139/NVRTX as v1
+  published them: `cargo drivers release` now reuses a published version's
+  zip byte for byte; the RTL8139/NVRTX EXEs build differently with today's
+  toolchain, so it says so and keeps v1's). Root `CATALOG.TXT` is v2's
+  (still unsigned). FREEHOLD pins v2 and its image catalog lists all nine
+  e1000 IDs for `E1000.EXE`; the built-in still claims its own eight first,
+  so today E1000.EXE drives only the 82544GC (100C). Gated on stage 16's new
+  `e1000u` machine (QEMU `e1000-82544gc`): started from the catalog, DHCP,
+  ping, 1 MiB fetched twice over TCP and compared, KILL stops the device,
+  `DRIVERS /START` and ping again; stages 1, 4, 5, 16 pass
+  (`evidence/D-224-freehold.txt`, `evidence/v2-build.txt`).
 - 2026-11-13 (live, the owner: "fix the gaps"): **D-219's gaps closed
   (FREEHOLD D-221).** A driver installed runs at once: the kernel's new
   `DRIVERS_START` call starts the catalog's driver for every device with no
@@ -160,19 +174,29 @@ FREEHOLD, with its own decision and gate.
 
 ## Next, in order
 
-1. Part 2, network drivers first (e1000, virtio-net as user-mode drivers:
-   check the DRIVER_* calls suffice — interrupts aren't delivered, drivers
-   poll; e1000 is the gates' NIC on most machines, so the built-in can only
-   go once the user-mode one passes every network gate). Then HDA sound.
-   `DRIVERS_START` and the interface keeping its number (D-221) help:
-   a user-mode e1000 can be restarted without losing the stack.
-2. The boot-path PROPOSAL (storage, USB, boot keyboard/console): loading a
+1. Remove the built-in e1000 (`kernel/src/drivers/net/e1000.rs` and its
+   call in `net::init`), so every e1000 runs E1000.EXE. Check first what
+   ran on the network before C: was mounted (the user-mode driver starts
+   after C:): DHCP at boot / background DHCP (D-208), the installer and
+   live media (`setup`, `cdrom`, `usbcd`, `reinstall` machines), UPDATE /
+   DRIVERS boot lines, and the `drvdl` machine (its e1000 then becomes a
+   user-mode driver too: DRIVERS.EXE's matching must not offer to replace
+   it unexpectedly). Every gate with an e1000 (stages 1-18 mostly) must
+   pass; kernel size goes down; ARCHITECTURE.md's Network section changes.
+2. virtio-net as a user-mode driver: the legacy device (1AF4:1000) is
+   I/O-BAR virtio and fits today's calls; the modern one (1AF4:1041) needs
+   its PCI capabilities (virtio's common/notify/ISR/device config) — the
+   kernel would need a general `DRIVER_CONFIG` read of the device's own
+   config space (a shared change: its own decision). Then HDA sound (needs
+   the audio bridge: a user-mode sound driver's equivalent of DRIVER_NET —
+   a shared interface, design as a decision first).
+3. The boot-path PROPOSAL (storage, USB, boot keyboard/console): loading a
    driver before C: is mounted — write it in DECISIONS.md as a PROPOSAL.
 
 ## Waiting on the owner
 
 - Sign the online driver catalog, `CATALOG.TXT` at the top of this
-  repository (release v1's, addresses into `releases/v1/`); machines read
+  repository (now release v2's, addresses into `releases/v2/`); machines read
   it with `DRIVERS /UPDATE` and at boot (FREEHOLD D-219) and refuse it
   unsigned. In a checkout of this repository, `cargo drivers sign` prints
   the exact lines (two `openssl` lines — sign, then verify against
@@ -198,3 +222,4 @@ FREEHOLD, with its own decision and gate.
 - 2026-11-13 (live, owner's request): build/package/release made cross-platform — `cargo drivers` (tools/drvtool, std-only Rust) replaces the bash/Python scripts (D-216).
 - 2026-11-13 run 2: the downloader — DRIVERS.EXE (/UPDATE, /CHECK, /BACK, /BOOT per DRIVERS=), the PCI list in DRIVERS, the online CATALOG.TXT here (cargo drivers current N); gated on stage 16 drvdl (D-219); gates 1/4/5/16 pass.
 - 2026-11-13 (live, owner's request): D-219's gaps fixed — drivers run at once (DRIVERS_START), fuller drivers by catalog order, /BACK holds, UPDATE keeps online drivers, live media installs, DRIVERS /START (D-221); gates 1/4/5/16 pass.
+- 2026-11-13 run 3: E1000.EXE (the kernel's e1000 in user mode) built here, release v2, FREEHOLD pins v2 and gates it on stage 16 e1000u (D-224); `cargo drivers release` reuses published versions; gates 1/4/5/16 pass.
