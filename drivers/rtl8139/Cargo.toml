@@ -1,0 +1,15 @@
+[package]
+name = "rtl8139"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "rtl8139"
+path = "src/main.rs"
+test = false
+bench = false
+
+[dependencies]
+freehold-rt = { path = "../../../freehold/programs/rt" }

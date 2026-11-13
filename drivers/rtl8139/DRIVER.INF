@@ -1,0 +1,13 @@
+; RTL8139.EXE's description, for tools/package.py: it goes into the zip as
+; RTL8139.INF (with Source= added) and into CATALOG.TXT as one line per
+; [Devices] entry. Raise Version= for every change that is published.
+[Driver]
+Name=RTL8139
+Version=1.0.0-1
+File=RTL8139.EXE
+Description=Realtek RTL8139 Ethernet
+Licence=MIT
+Basic=Yes
+
+[Devices]
+10EC:8139 network

@@ -1,0 +1,14 @@
+; NVRTX.EXE's description, for tools/package.py: it goes into the zip as
+; NVRTX.INF (with Source= added) and into CATALOG.TXT as one line per
+; [Devices] entry. Raise Version= for every change that is published.
+; The driver logic is FREEHOLD-RTX's (crates/freehold-rtx, pinned there).
+[Driver]
+Name=NVRTX
+Version=1.0.0-1
+File=NVRTX.EXE
+Description=NVIDIA GeForce RTX 20-50 (Turing-Blackwell)
+Licence=MIT
+Basic=Yes
+
+[Devices]
+10DE:* display

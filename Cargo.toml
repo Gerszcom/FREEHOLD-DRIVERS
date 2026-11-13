@@ -1,0 +1,41 @@
+# FREEHOLD-DRIVERS — FREEHOLD's user-mode drivers, outside the kernel
+# (FREEHOLD's DECISIONS.md, D-127, D-215). Each driver is an ordinary
+# FREEHOLD program built for the UEFI target (PE64), as FREEHOLD's own
+# programs are.
+#
+# The drivers depend on FREEHOLD's runtime (`freehold-rt` -> `freehold-abi`),
+# which stays in the FREEHOLD repository. This workspace resolves it from a
+# sibling checkout — clone `Gerszcom/freehold` next to this repository:
+#
+#   /some/dir/freehold           (the OS: kernel, rt, abi, gate harness)
+#   /some/dir/freehold-drivers   (this repository)
+#
+# `tools/build.sh` builds every driver and packages it (dist/).
+
+[workspace]
+resolver = "2"
+members = [
+    "drivers/rtl8139",
+    "drivers/nvrtx",
+    "crates/freehold-rtx",
+]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/Gerszcom/FREEHOLD-DRIVERS"
+
+# FREEHOLD's release profile, unchanged: overflow checks stay on, size and
+# speed from LTO and a single codegen unit.
+[profile.release]
+panic = "abort"
+opt-level = 2
+lto = true
+codegen-units = 1
+overflow-checks = true
+debug = 1
+
+[profile.dev]
+panic = "abort"
+opt-level = 1

@@ -1,0 +1,16 @@
+[package]
+name = "nvrtx"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "nvrtx"
+path = "src/main.rs"
+test = false
+bench = false
+
+[dependencies]
+freehold-rt = { path = "../../../freehold/programs/rt" }
+freehold-rtx = { path = "../../crates/freehold-rtx" }

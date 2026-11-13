@@ -1,0 +1,3 @@
+# Drivers are FREEHOLD programs: the stable UEFI target, which emits PE64.
+[build]
+target = "x86_64-unknown-uefi"

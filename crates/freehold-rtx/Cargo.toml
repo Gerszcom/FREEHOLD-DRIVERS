@@ -1,0 +1,31 @@
+# Vendored copy of the clean-room NVIDIA RTX driver logic crate.
+#
+# Source of truth: Gerszcom/FREEHOLD-RTX, crates/freehold-rtx (MIT).
+# Pinned upstream commit: a7dec57e72393d60f7820163e5a22ae5f6cde542
+#
+# This directory is a byte-for-byte mirror of that repository's
+# crates/freehold-rtx/src, carried here so NVRTX.EXE (drivers/nvrtx) can
+# link it (D-195; moved from FREEHOLD's crates/ with the driver, D-215). The
+# driver logic is developed and host-tested upstream (cargo test against a
+# MockGpu); only its src/ is vendored — the upstream tests/ stay there.
+# Refresh with: cp <FREEHOLD-RTX>/crates/freehold-rtx/src/*.rs src/ and bump
+# the pinned commit above.
+#
+# The crate is no_std, allocation-free and #![forbid(unsafe_code)]: every
+# hardware access goes through its Mmio trait, which NVRTX.EXE implements over
+# the runtime's Bar0 accessor (D-194). It has no dependencies.
+
+[package]
+name = "freehold-rtx"
+description = "Clean-room NVIDIA GeForce RTX 20-50 (Turing-Blackwell) GPU driver logic for FREEHOLD (vendored from Gerszcom/FREEHOLD-RTX)."
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/Gerszcom/FREEHOLD-RTX"
+publish = false
+
+[lib]
+name = "freehold_rtx"
+path = "src/lib.rs"
+
+[dependencies]
