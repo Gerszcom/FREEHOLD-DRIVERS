@@ -66,7 +66,7 @@ FREEHOLD, with its own decision and gate.
 ## Where things stand
 
 - 2026-11-13 (live, the owner: "fix the gaps"): **D-219's gaps closed
-  (FREEHOLD D-220).** A driver installed runs at once: the kernel's new
+  (FREEHOLD D-221).** A driver installed runs at once: the kernel's new
   `DRIVERS_START` call starts the catalog's driver for every device with no
   running driver; DRIVERS.EXE ends the old driver (KILL), waits, calls it;
   a restarted network driver keeps its interface number; `DRIVERS /START`
@@ -78,7 +78,7 @@ FREEHOLD, with its own decision and gate.
   drivers installed online (`C:\DRIVERS\ONLINE.TXT`) unless the release has
   newer ones. Gated on stage 16 `drvdl` (extended) and `rtl` (`/START` +
   ping through the same interface); stages 1, 4, 5, 16 pass (evidence
-  `evidence/D-220-freehold.txt`). **Part 1 is now complete except the
+  `evidence/D-221-freehold.txt`). **Part 1 is now complete except the
   owner's signature on `CATALOG.TXT`** (and his key in FREEHOLD's image).
 - 2026-11-13 (run 2): **Part 1, item 4 mostly done: the downloader**
   (FREEHOLD D-219). `DRIVERS.EXE` (a fourth program of FREEHOLD's std
@@ -163,7 +163,7 @@ FREEHOLD, with its own decision and gate.
    check the DRIVER_* calls suffice — interrupts aren't delivered, drivers
    poll; e1000 is the gates' NIC on most machines, so the built-in can only
    go once the user-mode one passes every network gate). Then HDA sound.
-   `DRIVERS_START` and the interface keeping its number (D-220) help:
+   `DRIVERS_START` and the interface keeping its number (D-221) help:
    a user-mode e1000 can be restarted without losing the stack.
 2. The boot-path PROPOSAL (storage, USB, boot keyboard/console): loading a
    driver before C: is mounted — write it in DECISIONS.md as a PROPOSAL.
@@ -196,4 +196,4 @@ FREEHOLD, with its own decision and gate.
 - 2026-11-13 run 1: drivers moved here (RTL8139, NVRTX), build/package/release scripts, release v1 published as releases/v1; FREEHOLD builds C:\DRIVERS from the pinned v1 zips (D-215); gates 1/4/5/16 pass.
 - 2026-11-13 (live, owner's request): build/package/release made cross-platform — `cargo drivers` (tools/drvtool, std-only Rust) replaces the bash/Python scripts (D-216).
 - 2026-11-13 run 2: the downloader — DRIVERS.EXE (/UPDATE, /CHECK, /BACK, /BOOT per DRIVERS=), the PCI list in DRIVERS, the online CATALOG.TXT here (cargo drivers current N); gated on stage 16 drvdl (D-219); gates 1/4/5/16 pass.
-- 2026-11-13 (live, owner's request): D-219's gaps fixed — drivers run at once (DRIVERS_START), fuller drivers by catalog order, /BACK holds, UPDATE keeps online drivers, live media installs, DRIVERS /START (D-220); gates 1/4/5/16 pass.
+- 2026-11-13 (live, owner's request): D-219's gaps fixed — drivers run at once (DRIVERS_START), fuller drivers by catalog order, /BACK holds, UPDATE keeps online drivers, live media installs, DRIVERS /START (D-221); gates 1/4/5/16 pass.
