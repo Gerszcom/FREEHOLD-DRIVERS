@@ -13,8 +13,7 @@ system calls that act on it alone, so a faulty driver ends only itself
   its first boot.
 - Online, `CONFIG.SYS`'s `DRIVERS=AUTO|ASK|MANUAL` decides what happens to
   better drivers found here; `DRIVERS /UPDATE` looks when told, and
-  `DRIVERS /BACK name` restores the previous version. (Being built: see
-  DRIVERS-DEV.md.)
+  `DRIVERS /BACK name` restores the previous version (FREEHOLD D-219).
 - The catalog is signed with the owner's release key (as FREEHOLD's own
   releases are, D-212); every driver zip is checked against its SHA-256.
 
@@ -78,16 +77,26 @@ at `https://raw.githubusercontent.com/Gerszcom/FREEHOLD-DRIVERS/<commit>/release
 is never rebuilt; the next is N+1. `.gitattributes` keeps git from changing
 a release's bytes (no line-ending conversion, whatever `core.autocrlf` says).
 The zips need no signature (FREEHOLD pins the basic ones by SHA-256, and a
-machine checks each against the catalog), but the catalog is trusted only
-with `CATALOG.SIG` beside it, its Ed25519 signature by the owner's release
-key. `cargo drivers sign N` prints his steps — one `openssl` line to sign,
-one to verify, then commit; each pastes as is into PowerShell or cmd
-(OpenSSL 3: Git for Windows has it) — and the `gh release create` line
-that also makes the release a GitHub release, if wanted.
+machine checks each against the catalog).
+
+## The online catalog
+
+A FREEHOLD machine reads `CATALOG.TXT` at the top of this repository, from
+`main` (`https://raw.githubusercontent.com/Gerszcom/FREEHOLD-DRIVERS/main/CATALOG.TXT`;
+`DRIVERS /UPDATE`, and at boot as `CONFIG.SYS`'s `DRIVERS=AUTO|ASK|MANUAL`
+says — FREEHOLD's D-219). It is the current release's catalog with each
+address leading into `releases/vN/`; `cargo drivers current N` writes it
+(`cargo drivers release N` does too). A machine believes it only with
+`CATALOG.SIG` beside it, its Ed25519 signature by the owner's release key
+(FREEHOLD's `C:\FREEHOLD\RELEASE.KEY`, the key FREEHOLD's own releases are
+signed with). `cargo drivers sign` prints his steps — one `openssl` line to
+sign, one to verify, then commit; each pastes as is into PowerShell or cmd
+(OpenSSL 3: Git for Windows has it). A new `CATALOG.TXT` removes the old
+signature, so the catalog is never served with a signature of another one.
 
 | Release | Drivers | Built from | Catalog signed |
 |---|---|---|---|
-| `v1` | RTL8139 1.0.0-1, NVRTX 1.0.0-1 | `d497525`, against FREEHOLD `a15e184` | not yet (owner) |
+| `v1` | RTL8139 1.0.0-1, NVRTX 1.0.0-1 | `d497525`, against FREEHOLD `a15e184` | current; `CATALOG.TXT` not yet signed (owner) |
 
 ## Licence
 

@@ -6,3 +6,5 @@ releases/** -text
 *.SIG binary
 # The INFs are CRLF text files on FREEHOLD; keep them as committed too.
 *.INF -text
+CATALOG.TXT -text
+CATALOG.SIG -text

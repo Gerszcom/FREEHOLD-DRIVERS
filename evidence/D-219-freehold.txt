@@ -1,0 +1,52 @@
+FREEHOLD D-219: the driver downloader, gated on FREEHOLD's stage 16 drvdl machine
+FREEHOLD base 2fe72c8 + the D-219 change; FREEHOLD-DRIVERS f0944a0 + root CATALOG.TXT
+Test catalog: RTL8139 1.0.0-1 = this repository's published releases/v1 zip (via FREEHOLD tools/drivers.pin), 1.0.0-2 = the same with a marker; signed with test keys (openssl genpkey -algorithm ed25519).
+
+12:38:26 [drvdl] test image: the shipped image, the test CA and release key, the test driver catalog, no RTL8139 driver: imagetool: /tmp/freehold-gate-m6utwqb9/drivers-drvdl.img (138 MiB): ESP 36 MiB FAT32, C: 64 MiB exFAT, D: 36 MiB FAT32
+12:38:29 [drvdl] ok   'process module up': 'process: task 0 is the kernel'
+12:38:29 [drvdl] ok   'C: mounted': 'fs: C: ExFat "FREEHOLD"'
+12:38:30 [drvdl] ok   'C:\\> prompt': 'C:\\>'
+12:38:30 [drvdl] ok   AUTOEXEC.BAT carries the visible DRIVERS /BOOT line
+12:38:31 [drvdl] ok   DRIVERS lists every PCI device: the RTL8139 has no driver
+12:38:32 [drvdl] ok   and the e1000 is the built-in driver's
+12:38:32 [drvdl] ok   the network is up on the e1000
+12:38:32 [drvdl] ok   a driver catalog signed by another key is refused
+12:38:33 [drvdl] ok   the signed catalog is read and a driver for the device nothing drives is found
+12:38:34 [drvdl] ok   a zip whose hash is wrong is refused
+12:38:34 [drvdl] ok   and leaves nothing behind
+12:38:34 [drvdl] ok   DRIVERS /BOOT says nothing with CONFIG.SYS at DRIVERS=MANUAL
+12:38:35 [drvdl] ok   'DRIVERS /UPDATE offers it': 'RTL8139 1.0.0-1 for 10ec:8139 at 00:03.0, which no driver drives'
+12:38:35 [drvdl] ok   'and asks': 'Install them now? (Y/N)'
+12:38:35 [drvdl] ok   'Y installs it, its hash checked': 'RTL8139 1.0.0-1 installed in C:\\DRIVERS for 10ec:8139'
+12:38:35 [drvdl] ok   'and says it starts at the next restart': 'starts at the next restart'
+12:38:35 [drvdl] ok   its line is in the image's catalog, which the kernel reads at boot
+12:38:36 [drvdl] ok   then it is up to date
+12:38:36 [drvdl] ok   CONFIG.SYS set to DRIVERS=ASK
+12:38:36 [drvdl] ok   'with DRIVERS=ASK, the boot line offers the newer driver': 'RTL8139 1.0.0-2 for 10ec:8139 at 00:03.0, newer than 1.0.0-1'
+12:38:36 [drvdl] ok   'and asks': 'Install them now? (Y/N)'
+12:38:37 [drvdl] ok   'N leaves it for later': 'Not now. DRIVERS /UPDATE installs them'
+12:38:37 [drvdl] ok   the boot line looks once a day at most (C:\FREEHOLD\DRIVERS.DAY)
+12:38:37 [drvdl] ok   CONFIG.SYS set to DRIVERS=AUTO
+12:38:37 [drvdl] ok   (today's look forgotten, so the next boot looks)
+12:38:40 [drvdl] ok   'at boot the kernel starts the installed RTL8139 driver from the catalog': 'drivers: started RTL8139.EXE for 10ec:8139 at 00:03.0 as pid 1'
+12:38:40 [drvdl] ok   'the driver brings the card up': 'drivers: pid 1 up as a network interface'
+12:38:42 [drvdl] ok   "with DRIVERS=AUTO, AUTOEXEC.BAT's DRIVERS /BOOT installs the newer driver at boot": 'DRIVERS: installing better drivers for this machine (CONFIG.SYS: DRIVERS=AUTO)'
+12:38:42 [drvdl] ok   'and says what changed, the old one kept': 'RTL8139 1.0.0-2 installed in C:\\DRIVERS for 10ec:8139 at 00:03.0 (1.0.0-1 kept in C:\\DRIVERS\\OLD)'
+12:38:42 [drvdl] ok   'then the prompt': 'C:\\>'
+12:38:42 [drvdl] ok   the old driver is in C:\DRIVERS\OLD
+12:38:43 [drvdl] ok   (1.0.0-1 runs until the restart)
+12:38:47 [drvdl] ok   'at boot the kernel starts the installed RTL8139 driver from the catalog': 'drivers: started RTL8139.EXE for 10ec:8139 at 00:03.0 as pid 1'
+12:38:47 [drvdl] ok   'the driver brings the card up': 'drivers: pid 1 up as a network interface'
+12:38:47 [drvdl] ok   'the prompt, the boot line silent (it looked today)': 'C:\\>'
+12:38:47 [drvdl] ok   C:\DRIVERS holds RTL8139 1.0.0-2
+12:38:48 [drvdl] ok   the newer driver runs after the restart
+12:38:49 [drvdl] ok   and brought its card up
+12:38:50 [drvdl] ok   the PCI list names the driver that drives the RTL8139
+12:38:51 [drvdl] ok   DRIVERS /BACK restores the old driver
+12:38:51 [drvdl] ok   C:\DRIVERS holds 1.0.0-1 again
+12:38:52 [drvdl] ok   and keeps 1.0.0-2 in C:\DRIVERS\OLD
+12:38:52 [drvdl] ok   a driver with no earlier version is said
+12:38:52 [drvdl] ok   'shutdown: bye': 'shutdown: bye'
+12:38:52 [drvdl] ok   "kernel enters S5 through the FADT's PM1 control": 'power: ACPI S5 (SLP_TYP 0/0)'
+12:38:53 [drvdl] ok   machine powered off through ACPI (QEMU exit code 0)
+12:38:53 [drvdl] PASS stage 16

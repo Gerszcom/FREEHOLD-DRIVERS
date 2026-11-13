@@ -2,7 +2,7 @@
 [build]
 target = "x86_64-unknown-uefi"
 
-# `cargo drivers build | release N | sign N` — the drivers' build tool
+# `cargo drivers build | release N | current N | sign` — the drivers' build tool
 # (tools/drvtool), run on this machine whatever it is (host-tuple: Windows,
 # Linux, macOS), so building needs nothing but Rust.
 [alias]

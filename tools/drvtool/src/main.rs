@@ -4,8 +4,15 @@
 //! ```text
 //! cargo drivers build        build every driver, package it into dist\
 //! cargo drivers release N    build release vN into releases\vN\ (commit it)
-//! cargo drivers sign N       print the owner's steps to sign vN's catalog
+//! cargo drivers current N    make vN the release machines read (CATALOG.TXT)
+//! cargo drivers sign         print the owner's steps to sign that catalog
 //! ```
+//!
+//! The online catalog a FREEHOLD machine reads (`DRIVERS /UPDATE`, D-219) is
+//! `CATALOG.TXT` at the top of this repository, served from `main`: the
+//! current release's catalog with each address leading into
+//! `releases/vN/`. It is trusted only with `CATALOG.SIG` beside it, the
+//! owner's signature.
 //!
 //! It runs wherever Rust does — Windows, Linux, macOS — and needs nothing
 //! else: no shell, no Python, no zip or hash tool. Standard library only;
@@ -34,12 +41,17 @@ fn main() -> ExitCode {
     let result = match args.first().map(String::as_str) {
         Some("build") => build(&root()).map(|_| ()),
         Some("release") => release_number(&args).and_then(|n| release(&root(), n)),
-        Some("sign") => release_number(&args).map(|n| print_sign_steps(&root(), n)),
+        Some("current") => release_number(&args).and_then(|n| current(&root(), n)),
+        Some("sign") => {
+            print_sign_steps(&root());
+            Ok(())
+        }
         _ => {
             eprintln!(
                 "usage:\n  cargo drivers build        build every driver, package it into dist\\\n  \
                  cargo drivers release N    build release vN into releases\\vN\\ (then commit it)\n  \
-                 cargo drivers sign N       the owner's steps to sign release vN's catalog"
+                 cargo drivers current N    make vN the release machines read (CATALOG.TXT)\n  \
+                 cargo drivers sign         the owner's steps to sign that catalog"
             );
             return ExitCode::from(2);
         }
@@ -310,38 +322,75 @@ fn release(root: &Path, n: u32) -> Result<()> {
     }
     println!("drivers: releases\\{tag}\\ written. Commit and push it: that publishes it.");
     print!("{}", fs::read_to_string(dir.join("SHA256SUMS")).unwrap_or_default());
-    print_sign_steps(root, n);
+    current(root, n)
+}
+
+/// `cargo drivers current N`: the online catalog (`CATALOG.TXT` at the top
+/// of the repository) becomes release N's, its addresses leading into
+/// `releases/vN/`. A signature of another catalog is removed with it.
+fn current(root: &Path, n: u32) -> Result<()> {
+    let rel = format!("releases/v{n}");
+    let from = root.join("releases").join(format!("v{n}")).join("CATALOG.TXT");
+    let text = fs::read_to_string(&from).map_err(|e| format!("{}: {e}", from.display()))?;
+    let catalog = online_catalog(&text, &rel);
+    let to = root.join("CATALOG.TXT");
+    if fs::read_to_string(&to).ok().as_deref() == Some(catalog.as_str()) {
+        println!("drivers: CATALOG.TXT is already release {n}'s.");
+    } else {
+        write(&to, catalog.as_bytes())?;
+        let _ = fs::remove_file(root.join("CATALOG.SIG"));
+        println!("drivers: CATALOG.TXT is now release {n}'s (addresses in {rel}/). Commit and push it.");
+    }
+    print_sign_steps(root);
     Ok(())
 }
 
-fn print_sign_steps(root: &Path, n: u32) {
-    let tag = format!("v{n}");
-    let rel = format!("releases/{tag}");
-    let dir = root.join("releases").join(&tag);
-    if dir.join("CATALOG.SIG").is_file() {
-        println!("drivers: {rel}/CATALOG.SIG is there; release {n} is signed.");
+/// A release's catalog as the online one: each line's address (the
+/// seventh field) prefixed with the release's directory; comments kept,
+/// and one saying which release it is.
+fn online_catalog(text: &str, rel: &str) -> String {
+    let mut out = String::new();
+    let mut said = false;
+    for line in text.lines() {
+        let t = line.trim_end();
+        if t.starts_with(';') || t.trim().is_empty() {
+            out.push_str(t);
+            out.push_str("\r\n");
+            continue;
+        }
+        if !said {
+            out.push_str(&format!("; The current release: {rel}.\r\n"));
+            said = true;
+        }
+        let f: Vec<&str> = t.split_whitespace().collect();
+        if f.len() < 8 {
+            continue;
+        }
+        let mut f: Vec<String> = f.iter().map(|s| s.to_string()).collect();
+        f[6] = format!("{rel}/{}", f[6]);
+        out.push_str(&f.join(" "));
+        out.push_str("\r\n");
+    }
+    out
+}
+
+fn print_sign_steps(root: &Path) {
+    if root.join("CATALOG.SIG").is_file() {
+        println!("drivers: CATALOG.SIG is there; the online catalog is signed.");
         return;
     }
-    // The release's files by name: PowerShell and cmd do not expand `*`.
-    let mut files: Vec<String> = fs::read_dir(&dir)
-        .map(|r| r.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect())
-        .unwrap_or_default();
-    files.push("CATALOG.SIG".into());
-    files.sort();
-    let files: Vec<String> = files.iter().map(|f| format!("{rel}/{f}")).collect();
-    let files = files.join(" ");
     // One line each, so they paste the same into PowerShell, cmd or a Unix
     // shell. OpenSSL 3 (Git for Windows carries it) has -rawin.
     println!(
-        "\nTo sign release {n}'s catalog (the owner, with the key only he holds), in this repository:\n\n  \
-         openssl pkeyutl -sign -inkey freehold-release.pem -rawin -in {rel}/CATALOG.TXT -out {rel}/CATALOG.SIG\n  \
-         openssl pkeyutl -verify -pubin -inkey RELEASE.KEY -rawin -in {rel}/CATALOG.TXT -sigfile {rel}/CATALOG.SIG\n  \
-         git add {rel}/CATALOG.SIG\n  \
-         git commit -m \"Release {n}: the catalog's signature\"\n  \
+        "\nTo sign the online catalog (the owner, with the key only he holds), in this repository:\n\n  \
+         openssl pkeyutl -sign -inkey freehold-release.pem -rawin -in CATALOG.TXT -out CATALOG.SIG\n  \
+         openssl pkeyutl -verify -pubin -inkey RELEASE.KEY -rawin -in CATALOG.TXT -sigfile CATALOG.SIG\n  \
+         git add CATALOG.SIG\n  \
+         git commit -m \"The online driver catalog's signature\"\n  \
          git push\n\n\
          The first makes the signature, the second checks it against the public key FREEHOLD\n\
-         ships (C:\\FREEHOLD\\RELEASE.KEY). To have the release on GitHub too:\n\n  \
-         gh release create {tag} {files} --repo {REPO} --title \"FREEHOLD drivers {n}\"\n"
+         ships (C:\\FREEHOLD\\RELEASE.KEY). Machines read CATALOG.TXT and CATALOG.SIG from\n\
+         https://raw.githubusercontent.com/{REPO}/main/ (DRIVERS /UPDATE).\n"
     );
 }
 
