@@ -1,4 +1,3 @@
-Run in progress: started 2026-11-13T18:59Z
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -66,6 +65,34 @@ FREEHOLD, with its own decision and gate.
 
 ## Where things stand
 
+- 2026-11-13 (run 6): **HD Audio moved to user mode and the built-in
+  removed in one step (FREEHOLD D-238, `75cd3e1`): `HDA.EXE`** (`drivers/hda`,
+  1.0.0-1, release `v4`; the other four zips v3's byte for byte). First the
+  shared interface, designed generally: the **sound bridge**,
+  `DRIVER_SOUND` (0x0088; FREEHOLD `a4f4eae`, part 1, pushed first so v4
+  could be built against a published commit): `SOUND_REGISTER` (rate +
+  description; one output), `SOUND_WAIT` (sleep until a stream opens; get
+  the lent 64 KiB ring), `SOUND_PLAYED` (position + fetched; the kernel
+  clears and mixes ahead; keep/stop), `SOUND_STOPPED` (ring back). The
+  kernel keeps everything device-neutral in `drivers/sound.rs`: the sound
+  family, streams, rate conversion, mixer, volume and keys, the chime.
+  The ring is the kernel's, lent — so D-103's idle footprint (4 KiB: the
+  driver's CORB/RIRB/BDL page) holds without a DMA-free call. The chime
+  is read and queued in the driver's `SOUND_REGISTER` call (the boot
+  doesn't wait for the driver); `run_beside` and the AP job queue (its
+  only user was sound's start) are gone, and the per-CPU sound tick.
+  Catalog class word `sound`/`audio`/`multimedia` = 04h (kernel and
+  DRIVERS.EXE). The image's catalog lists 8086:2668/293E and vendor-wide
+  `sound` lines (Intel, AMD/ATI, AMD, NVIDIA, VIA, SiS, ULi, Zhaoxin) —
+  the built-in matched class 04/03 for any vendor; HDA.EXE ends at once
+  on a multimedia device that isn't subclass 03. Kernel 828416 → 817664
+  bytes. Gate: stage 9 (both machines) through HDA.EXE with every old
+  check plus no built-in, HDA.EXE registered at 48 kHz, DRIVERS' `sound`
+  line naming it; stage 9b adds kill → "no sound device", prompt fine,
+  `DRIVERS /START` → registers again → PLAY plays (two sounds recorded).
+  Stage 16 primary takes E1000.EXE's pid from the log (HDA.EXE is pid 1
+  there now: the controller is first in PCI order). Stages 1, 4, 5, 9,
+  13, 16 pass (`evidence/D-238-freehold.txt`).
 - 2026-11-13 (run 5): **virtio-net moved to user mode and the built-in
   removed in one step (FREEHOLD D-231, `853f8c6`): `VIRTNET.EXE`** (`drivers/virtnet`,
   1.0.0-1, release `v3`; E1000/RTL8139/NVRTX v2's zips byte for byte).
@@ -218,28 +245,28 @@ FREEHOLD, with its own decision and gate.
 
 ## Next, in order
 
-1. HDA sound as a user-mode driver: needs the audio bridge (a user-mode
-   sound driver's equivalent of the NIC bridge, what `PLAY`, the chime and
-   the Windows add-on's sound (FREEHOLD-WINE D-209) write to) — a shared
-   interface: design it as a decision first (what the kernel's sound layer
-   keeps — the mixer/stream API programs use — and what moves: the
-   controller, CORB/RIRB, codec walk, stream DMA). The chime plays at boot
-   from the kernel (D-103) before the shell, i.e. before `C:\DRIVERS` runs
-   anything: check what that means (chime from the driver once it is up?
-   the chime is the owner's design — if it must move later, PROPOSAL). Stage
-   9 (the sound gates, `-sound.wav` captured) is the gate to keep passing.
+1. Interrupts delivered to user-mode drivers (DIRECTION Stage 16): today
+   a network driver polls with a 1 ms sleep — a thousand wake-ups a second
+   per card even when idle — and HDA.EXE polls every 2 ms while playing.
+   A general kernel change (deliver a device's MSI or INTx to its driver
+   as a wait it can block on, e.g. `DRIVER_IRQ_WAIT` with a timeout; MSI
+   via `DRIVER_CONFIG`'s capability walk, set up by the kernel): its own
+   decision, gated by moving E1000.EXE/VIRTNET.EXE (and RTL8139) onto it
+   with stage 4's idle-wire and throughput checks and stage 16's machines.
+   It also answers the one-off `UPDATE /Y` connect timeout seen in run 5.
 2. The boot-path PROPOSAL (storage, USB — including the USB stack's
    CDC-ECM network adapters, which are USB class drivers, not PCI — the
-   boot keyboard/console): loading a driver before C: is mounted — write
-   it in DECISIONS.md as a PROPOSAL and put it under "Waiting on the
-   owner".
-3. Interrupts delivered to user-mode drivers (DIRECTION Stage 16): today a
-   network driver polls with a 1 ms sleep, a thousand wake-ups a second
-   per card even when idle — now on both test machines. On this two-CPU
-   sandbox that cost was visible once (stage 7's four-programs-at-once
-   ratio missed on the primary machine, passed on a second run). A general
-   kernel change (deliver a device's MSI/INTx to its driver as a wait it
-   can block on): its own decision, and it helps every driver that moved.
+   boot keyboard/console, virtio-input): loading a driver before C: is
+   mounted — write it in DECISIONS.md as a PROPOSAL and put it under
+   "Waiting on the owner".
+3. The display drivers (`bochs.rs`, `virtio_gpu.rs`, the framebuffer):
+   built in, not on the path to C:, but owned by the graphics task (its
+   native display stack, FAMILY_VIDEO, graphics/DESIGN.md). Don't move
+   them; write a PROPOSAL it can see (in DECISIONS.md and noted in
+   GRAPHICS-DEV.md's direction, not its code) of what a user-mode display
+   driver's bridge would be, and put the decision under "Waiting on the
+   owner". After 1–3 every built-in that qualifies for Part 2 has moved or
+   is with the owner.
 4. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
    4 vCPUs under TCG) boots in 5-8 s, over stage 3's 5 s limit, on the
    unchanged secondary machine too; run 4 passed every other stage 3 check
@@ -249,7 +276,7 @@ FREEHOLD, with its own decision and gate.
 ## Waiting on the owner
 
 - Sign the online driver catalog, `CATALOG.TXT` at the top of this
-  repository (now release v3's, addresses into `releases/v3/`); machines read
+  repository (now release v4's, addresses into `releases/v4/`); machines read
   it with `DRIVERS /UPDATE` and at boot (FREEHOLD D-219) and refuse it
   unsigned. In a checkout of this repository, `cargo drivers sign` prints
   the exact lines (two `openssl` lines — sign, then verify against
@@ -278,3 +305,4 @@ FREEHOLD, with its own decision and gate.
 - 2026-11-13 run 3: E1000.EXE (the kernel's e1000 in user mode) built here, release v2, FREEHOLD pins v2 and gates it on stage 16 e1000u (D-224); `cargo drivers release` reuses published versions; gates 1/4/5/16 pass.
 - 2026-11-13 run 4: built-in e1000 removed from the kernel, every e1000 runs E1000.EXE; the boot waits for network drivers' interfaces; TASKS shows drivers; gate harness takes the shell's pid (D-229); gates 1/2/4/5/7/15/16 pass (after rebasing onto D-228: 1/4/5/16 again), 3 except its sandbox-bound boot-time limit.
 - 2026-11-13 run 5: VIRTNET.EXE (virtio-net in user mode) built here, release v3; FREEHOLD gains DRIVER_CONFIG + 8/16-bit BAR access, pins v3, the built-in virtio-net removed (D-231); gates 1/4/5/16 pass.
+- 2026-11-13 run 6: the sound bridge (DRIVER_SOUND) and HDA.EXE built here, release v4; the built-in HD Audio removed, the kernel keeps the mixer (D-238); gates 1/4/5/9/13/16 pass.

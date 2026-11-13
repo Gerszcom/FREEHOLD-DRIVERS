@@ -1,0 +1,77 @@
+FREEHOLD D-238 — HD Audio in user mode (HDA.EXE, release v4) over the sound bridge (DRIVER_SOUND), the built-in removed.
+FREEHOLD tree: a4f4eae (DRIVER_SOUND ABI + runtime, part 1) + the move (tools/drivers.pin -> release v4 at d9c958e).
+Image built by tools/build.sh with HDA-1.0.0-1.ZIP = releases/v4's (sha256 fc4d4bb8...). Kernel 828416 -> 817664 bytes. 2026-11-13T20:02Z
+
+== python3 tools/gate.py 9
+19:27:53 [primary] PASS stage 9
+19:28:34 [secondary] PASS stage 9
+19:28:34 gate 9: PASS
+
+== python3 tools/gate.py 13
+19:31:07 [primary] PASS stage 13
+19:33:47 [secondary] PASS stage 13
+19:33:47 gate 13: PASS
+
+== python3 tools/gate.py 1
+19:56:48 [primary] PASS stage 1
+19:56:54 [secondary] PASS stage 1
+19:56:54 gate 1: PASS
+
+== python3 tools/gate.py 4
+19:58:28 [primary] PASS stage 4
+20:00:01 [secondary] PASS stage 4
+20:00:01 gate 4: PASS
+
+== python3 tools/gate.py 5
+20:00:16 [primary] PASS stage 5
+20:00:32 [secondary] PASS stage 5
+20:00:38 [nvme] PASS stage 5
+20:00:47 [primary-reboot] PASS stage 5
+20:01:02 [primary-up] PASS stage 5
+20:01:02 gate 5: PASS
+
+== python3 tools/gate.py 16
+19:50:05 [primary] PASS stage 16
+19:51:05 [secondary] PASS stage 16
+19:51:26 [rtl] PASS stage 16
+19:51:51 [e1000u] PASS stage 16
+19:52:17 [vnetm] PASS stage 16
+19:53:20 [drvdl] PASS stage 16
+19:53:53 [setup] PASS stage 16
+19:54:16 [cdrom] PASS stage 16
+19:54:31 [usbcd] PASS stage 16
+19:54:45 [disks] PASS stage 16
+19:54:50 [reinstall] PASS stage 16
+19:54:55 [installed] PASS stage 16
+19:55:05 [claim] PASS stage 16
+19:55:53 [install] PASS stage 16
+19:56:41 [dualboot] PASS stage 16
+19:56:42 gate 16: PASS
+
+== stage 9 detail (primary, then secondary 9b)
+19:27:18 [primary] ok   no built-in HD Audio: HDA.EXE (pid 1) is the sound output
+19:27:20 [primary] ok   DRIVERS lists HD Audio, the sound output through HDA.EXE (pid 1)
+19:27:21 [primary] ok   idle, the sound driver holds 4 KiB: 'sound     HD Audio 8086:293e, codec 0: 1af4:0012, line out through 1 converter(s), 48000 Hz, idle (HDA.EXE pid 1), 4 KiB'
+19:27:32 [primary] ok   while a sound plays the driver holds 106 KiB: 'sound     HD Audio 8086:293e, codec 0: 1af4:0012, line out through 1 converter(s), 48000 Hz, playing 1 stream (HDA.EXE pid 1), 106 KiB'
+19:27:38 [primary] ok   after the sounds ended the driver holds 4 KiB again
+19:27:41 [primary] ok   the boot chime: 1.06 s, its notes in order at 1046, 1319, 1568, 2093 Hz
+19:27:41 [primary] heard 3.00 s at 0.05 s: 440 Hz, rms 11580
+19:27:41 [primary] heard 2.98 s at 3.08 s: 440 Hz, rms 2894
+19:27:41 [primary] heard 2.99 s at 6.10 s: 440 Hz, rms 3944
+19:27:41 [primary] heard 0.97 s at 9.12 s: 881 Hz, rms 11248
+19:27:41 [primary] ok   all four sounds at their pitch, length and loudness; two mixed
+19:27:46 [primary] ok   no built-in HD Audio: HDA.EXE (pid 1) is the sound output
+
+== stage 13: sound
+19:31:07 [primary] ok   DOOM's sound effects were heard
+19:33:47 [secondary] ok   DOOM's sound effects were heard
+
+== stage 9b (CHIME=OFF): the sound driver killed and restarted
+19:27:50 [primary] ok   'the sound output went with it': 'sound: pid 1 ended; no sound output'
+19:27:50 [primary] ok   with the sound driver killed, PLAY says: 'PLAY: no sound device (error 21)'
+19:27:51 [primary] ok   DRIVERS /START starts HDA.EXE again
+19:27:53 [primary] ok   the two PLAYs, and only they, are in the recording, the second through the restarted driver: [(880, 0.99), (880, 0.97)]
+19:28:31 [secondary] ok   'the sound output went with it': 'sound: pid 1 ended; no sound output'
+19:28:31 [secondary] ok   with the sound driver killed, PLAY says: 'PLAY: no sound device (error 21)'
+19:28:31 [secondary] ok   DRIVERS /START starts HDA.EXE again
+19:28:34 [secondary] ok   the two PLAYs, and only they, are in the recording, the second through the restarted driver: [(880, 0.99), (880, 0.96)]
