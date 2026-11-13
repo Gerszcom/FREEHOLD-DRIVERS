@@ -57,7 +57,7 @@ not needed to reach C: at boot — the network drivers (e1000, virtio-net),
 sound (HDA), and whatever else ARCHITECTURE.md lists that qualifies. The
 drivers on the boot path (storage, the USB stack, the boot keyboard and
 console) need a design for loading a driver before C: is mounted: write that
-as a DECISIONS.md PROPOSAL under "Waiting on Roi" rather than building it;
+as a DECISIONS.md PROPOSAL under "Waiting on the owner" rather than building it;
 the goal does not require moving them. Each move may need kernel work first
 (interrupts delivered to drivers, the IOMMU, a stable interface per device
 class — DIRECTION.md Stage 16); build what is needed generally, in
@@ -149,7 +149,7 @@ FREEHOLD, with its own decision and gate.
 3. The boot-path PROPOSAL (storage, USB, boot keyboard/console): loading a
    driver before C: is mounted — write it in DECISIONS.md as a PROPOSAL.
 
-## Waiting on Roi
+## Waiting on the owner
 
 - Sign release v1's driver catalog (nothing else is blocked on it yet; a
   machine will refuse an unsigned catalog). In a checkout of this
