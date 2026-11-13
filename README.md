@@ -31,24 +31,29 @@ it covers. Both moved here from FREEHOLD's `programs/` (with
 
 ## Building
 
+On Windows, Linux or macOS, with nothing but Rust (`rustup`): the build,
+packaging and release steps are a small Rust program in this repository
+(`tools/drvtool`, standard library only), run through a Cargo alias. No
+shell, Python, zip or hash tool is needed.
+
 The drivers build against FREEHOLD's runtime (`freehold-rt`), from a
 sibling checkout, as FREEHOLD-WINE and FREEHOLD-ELF do:
 
 ```
-<parent>/freehold/            # github.com/Gerszcom/freehold
-<parent>/freehold-drivers/    # this repository
+<parent>\freehold\            github.com/Gerszcom/freehold
+<parent>\freehold-drivers\    this repository
 ```
 
 ```
 rustup target add x86_64-unknown-uefi
-tools/build.sh
+cargo drivers build
 ```
 
-builds every driver and packages it into `dist/`: `NAME-VERSION.ZIP`
+builds every driver and packages it into `dist\`: `NAME-VERSION.ZIP`
 (`NAME.EXE` and `NAME.INF`, the INF naming the exact commits it was built
-from; entries sorted and dated so the same files give the same zip),
-`CATALOG.TXT` and `SHA256SUMS`. The catalog has one line per device a
-driver covers:
+from; entries stored, sorted and dated, so the same files give the same
+zip), `CATALOG.TXT` and `SHA256SUMS`. (A plain `cargo build` builds the
+drivers alone.) The catalog has one line per device a driver covers:
 
 ```
 VENDOR:DEVICE CLASS NAME VERSION BYTES SHA256 ADDRESS DESCRIPTION
@@ -58,19 +63,27 @@ VENDOR:DEVICE CLASS NAME VERSION BYTES SHA256 ADDRESS DESCRIPTION
 (D-127, D-196: `DEVICE` is a hex id, or `*` for every device of that vendor
 in `CLASS`); `ADDRESS` is relative to the catalog.
 
+The alias builds the tool for the machine it runs on (`--target host-tuple`,
+which a current Cargo understands; tested with Rust 1.97). Building on
+FREEHOLD itself waits for a Rust toolchain there; the tool uses only the
+standard library, so it will not be what stands in the way.
+
 ## Releases
 
-`tools/release.sh N` builds from a clean checkout of this repository and a
-clean sibling FREEHOLD into `releases/vN/` — every driver's zip,
+`cargo drivers release N` builds from a clean checkout of this repository
+and a clean sibling FREEHOLD into `releases\vN\` — every driver's zip,
 `CATALOG.TXT` and `SHA256SUMS` — which is committed: the push publishes it,
 at `https://raw.githubusercontent.com/Gerszcom/FREEHOLD-DRIVERS/<commit>/releases/vN/`
 (as FREEHOLD-APPS serves its zips from its repository). A published release
-is never rebuilt; the next is N+1. The zips need no signature (FREEHOLD pins
-the basic ones by SHA-256, and a machine checks each against the catalog),
-but the catalog is trusted only with `CATALOG.SIG` beside it, its Ed25519
-signature by the owner's release key; the script prints his steps (sign,
-verify, commit). `tools/release.sh N --publish` also makes the same files a
-GitHub release `vN` (a prerelease until it carries `CATALOG.SIG`).
+is never rebuilt; the next is N+1. `.gitattributes` keeps git from changing
+a release's bytes (no line-ending conversion, whatever `core.autocrlf` says).
+The zips need no signature (FREEHOLD pins the basic ones by SHA-256, and a
+machine checks each against the catalog), but the catalog is trusted only
+with `CATALOG.SIG` beside it, its Ed25519 signature by the owner's release
+key. `cargo drivers sign N` prints his steps — one `openssl` line to sign,
+one to verify, then commit; each pastes as is into PowerShell or cmd
+(OpenSSL 3: Git for Windows has it) — and the `gh release create` line
+that also makes the release a GitHub release, if wanted.
 
 | Release | Drivers | Built from | Catalog signed |
 |---|---|---|---|

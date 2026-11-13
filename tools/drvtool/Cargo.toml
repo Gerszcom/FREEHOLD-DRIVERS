@@ -1,0 +1,16 @@
+# The drivers' build, packaging and release tool (FREEHOLD's D-216). It runs
+# on the machine you build on — Windows, Linux or macOS — with nothing but
+# Rust: `cargo drivers ...` (the alias in .cargo/config.toml). Standard
+# library only; no third-party crate.
+[package]
+name = "drvtool"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "drvtool"
+path = "src/main.rs"
+test = false
+bench = false

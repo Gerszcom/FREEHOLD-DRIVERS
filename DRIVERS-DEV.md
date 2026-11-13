@@ -1,4 +1,3 @@
-Run in progress: started 2026-11-13T12:06Z
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -66,15 +65,32 @@ FREEHOLD, with its own decision and gate.
 
 ## Where things stand
 
+- 2026-11-13 (live, the owner): "you made it build on Linux when I use
+  Windows and FREEHOLD". The bash/Python scripts (`tools/build.sh`,
+  `package.py`, `release.sh`) are replaced by `tools/drvtool`, a std-only
+  Rust program run as `cargo drivers build | release N | sign N` (alias in
+  `.cargo/config.toml`, `--target host-tuple`), so building needs nothing
+  but Rust on Windows, Linux or macOS (FREEHOLD D-216). Zips are now stored
+  (not deflated), still deterministic; release v1 is untouched (published
+  bytes are never rebuilt). `.gitattributes` keeps `releases/**` byte-exact
+  under Windows' `core.autocrlf`. Checked: built and packaged on Linux,
+  `cargo check --target x86_64-pc-windows-msvc` clean, clippy clean, its
+  SHA-256 matches `sha256sum`, the zips pass `unzip -t` and Python's
+  zipfile, the driver EXE is byte-identical to v1's, and the printed
+  `openssl` sign/verify lines work with a test key. Not run on a real
+  Windows machine here. FREEHOLD's own build (`tools/build.sh`, with
+  `tools/drivers.sh`) is still bash: its ports need gcc and the rest — a
+  separate question for the owner. Building on FREEHOLD itself needs a Rust
+  toolchain there.
 - 2026-11-13 (run 1): **Part 1, item 1 done, item 3 done; item 2 half
   done (needs the owner's signature).** RTL8139 and NVRTX (with
   `crates/freehold-rtx`, the FREEHOLD-RTX mirror NVRTX links) live here,
   copied from FREEHOLD `a15e184`, and build against `../freehold`
-  (`tools/build.sh`); FREEHOLD no longer carries their sources (D-215).
-  `drivers/NAME/DRIVER.INF` describes each driver; `tools/package.py` makes
+  (`cargo drivers build`); FREEHOLD no longer carries their sources (D-215).
+  `drivers/NAME/DRIVER.INF` describes each driver; packaging makes
   `NAME-VERSION.ZIP` (`NAME.EXE` + `NAME.INF` with `Source=` commits,
   deterministic) and `CATALOG.TXT` (`VENDOR:DEVICE CLASS NAME VERSION BYTES
-  SHA256 ADDRESS DESCRIPTION`); `tools/release.sh N` writes `releases/vN/`,
+  SHA256 ADDRESS DESCRIPTION`); `cargo drivers release N` writes `releases/vN/`,
   which is committed and so published (raw.githubusercontent.com by
   commit). Release `v1` = RTL8139 1.0.0-1 + NVRTX 1.0.0-1, built from
   `d497525`, committed in `9795adc` (`evidence/v1-build.txt`); its catalog
@@ -92,8 +108,8 @@ FREEHOLD, with its own decision and gate.
   deleting releases is not permitted for this session type"
   (api.github.com/repos/Gerszcom/FREEHOLD-DRIVERS/releases). Hence releases
   as committed `releases/vN/` (as FREEHOLD-APPS serves `ZIPS/`);
-  `tools/release.sh N --publish` makes the same bytes a GitHub release when
-  the owner runs it.
+  `cargo drivers sign N` prints the `gh release create` line that makes the
+  same bytes a GitHub release when the owner runs it.
 - The owner's release key is not in FREEHOLD's image yet
   (`system/FREEHOLD/RELEASE.KEY`, D-212); gates use test keys.
 - The NVIDIA driver is also developed in Gerszcom/FREEHOLD-RTX by the owner
@@ -106,7 +122,7 @@ FREEHOLD, with its own decision and gate.
    (record in D-216): the catalog a machine reads is
    `https://raw.githubusercontent.com/Gerszcom/FREEHOLD-DRIVERS/main/CATALOG.TXT`
    + `CATALOG.SIG` at the repository root (the latest release's catalog,
-   addresses `releases/vN/NAME-VER.ZIP`), written by `tools/release.sh`;
+   addresses `releases/vN/NAME-VER.ZIP`), written by `cargo drivers release`;
    `CONFIG.SYS` `DRIVERS=AUTO|ASK|MANUAL` and a `DRIVERCATALOG=` (or
    reuse `CATALOG=`'s pattern) line. Then the program: `DRIVERS` is a
    COMMAND.COM built-in (`programs/command/src/builtins.rs:90`,
@@ -136,12 +152,11 @@ FREEHOLD, with its own decision and gate.
 ## Waiting on Roi
 
 - Sign release v1's driver catalog (nothing else is blocked on it yet; a
-  machine will refuse an unsigned catalog). With your release key, in a
-  checkout of this repository:
-  `openssl pkeyutl -sign -inkey freehold-release.pem -rawin -in releases/v1/CATALOG.TXT -out releases/v1/CATALOG.SIG`,
-  check it with `openssl pkeyutl -verify -pubin -inkey RELEASE.KEY -rawin -in releases/v1/CATALOG.TXT -sigfile releases/v1/CATALOG.SIG`,
-  then commit and push `releases/v1/CATALOG.SIG`. Optional: `tools/release.sh 1 --publish`
-  to have it as a GitHub release too (these sessions can't create releases).
+  machine will refuse an unsigned catalog). In a checkout of this
+  repository, `cargo drivers sign 1` prints the exact lines (two `openssl`
+  lines — sign, then verify against RELEASE.KEY — and the commit); they
+  paste as is into PowerShell or cmd. It also prints the optional `gh
+  release create` line, since these sessions can't create GitHub releases.
   Answer:
 - The NVIDIA RTX driver lives in two places: FREEHOLD's `programs/nvrtx`
   (merged from the RTX work) — now moved here as `drivers/nvrtx` with its
@@ -156,3 +171,4 @@ FREEHOLD, with its own decision and gate.
 
 - 2026-11-13: brief and goal written (from the owner's answers in chat).
 - 2026-11-13 run 1: drivers moved here (RTL8139, NVRTX), build/package/release scripts, release v1 published as releases/v1; FREEHOLD builds C:\DRIVERS from the pinned v1 zips (D-215); gates 1/4/5/16 pass.
+- 2026-11-13 (live, owner's request): build/package/release made cross-platform — `cargo drivers` (tools/drvtool, std-only Rust) replaces the bash/Python scripts (D-216).

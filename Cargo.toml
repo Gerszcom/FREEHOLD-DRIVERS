@@ -10,7 +10,9 @@
 #   /some/dir/freehold           (the OS: kernel, rt, abi, gate harness)
 #   /some/dir/freehold-drivers   (this repository)
 #
-# `tools/build.sh` builds every driver and packages it (dist/).
+# `cargo drivers build` builds every driver and packages it (dist/): the
+# alias runs tools/drvtool on the machine you build on — Windows, Linux or
+# macOS — with nothing but Rust.
 
 [workspace]
 resolver = "2"
@@ -18,6 +20,13 @@ members = [
     "drivers/rtl8139",
     "drivers/nvrtx",
     "crates/freehold-rtx",
+    "tools/drvtool",
+]
+# A plain `cargo build` builds the drivers (for the UEFI target, as set in
+# .cargo/config.toml); the tool is built for the host by its alias.
+default-members = [
+    "drivers/rtl8139",
+    "drivers/nvrtx",
 ]
 
 [workspace.package]

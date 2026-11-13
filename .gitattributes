@@ -1,0 +1,8 @@
+# A release's files are published byte for byte, pinned by SHA-256 and
+# signed: git must never change their line endings (core.autocrlf on
+# Windows would otherwise turn CATALOG.TXT's bytes into others).
+releases/** -text
+*.ZIP binary
+*.SIG binary
+# The INFs are CRLF text files on FREEHOLD; keep them as committed too.
+*.INF -text

@@ -3,6 +3,10 @@
 version = 4
 
 [[package]]
+name = "drvtool"
+version = "1.0.0"
+
+[[package]]
 name = "freehold-abi"
 version = "1.0.0"
 
