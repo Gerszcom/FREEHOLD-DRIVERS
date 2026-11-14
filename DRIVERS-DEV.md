@@ -1,4 +1,3 @@
-Run in progress: started 2026-11-14T00:59Z
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -65,6 +64,34 @@ class — DIRECTION.md Stage 16); build what is needed generally, in
 FREEHOLD, with its own decision and gate.
 
 ## Where things stand
+
+- 2026-11-14 (run 10): **The three designs Part 2 needed from the owner,
+  written as PROPOSALs in FREEHOLD's DECISIONS.md (documentation only; no
+  code, no release, no gate affected).** D-253, INTx for devices with
+  neither MSI nor MSI-X (RTL8139, the 8254x): the gate's q35 + OVMF tables
+  were read from OVMF's own UEFI shell (`dmem` of the ACPI reclaim range,
+  the BIOS area and the EBDA, the DSDT disassembled with `iasl`;
+  `evidence/D-253-intx-q35.txt`): no MP table, no `$PIR`; `_PRT` is a
+  method choosing between two static packages by what `_PIC` stored, the
+  APIC-mode one naming link devices `GSIA`–`GSIH` with static `_CRS`
+  templates (GSI 16–23, level, active-high, shared). Recommended: a small
+  `_PRT`-only AML evaluator in the kernel (no hardware access, ~600–900
+  lines) and a level-triggered, shared delivery through `DRIVER_IRQ`
+  (`IRQ_INTX`) / `DRIVER_WAIT` (unmask once every sharer has waited
+  again); polling stays until he chooses. D-254, the boot path
+  (storage, USB): recommended boot drivers inside the kernel file
+  (`BOOTX64.EFI` + an archive of pinned user-mode drivers) with a block
+  bridge `DRIVER_BLOCK` and a restart policy, stepwise from virtio-blk;
+  PS/2, serial, RTC, the console and the USB host controller + hubs stay
+  built in for good. D-255, display: a `DRIVER_DISPLAY` bridge designed
+  (scanout in the driver's BAR, or lent frames + FLUSH for virtio-gpu);
+  recommended to keep Bochs and virtio-gpu built in (on a virtio-gpu-only
+  machine the built-in is the console's only screen before `C:`) and build
+  the bridge when NVRTX needs to show a picture, with the graphics task;
+  a note in GRAPHICS-DEV.md's direction. FREEHOLD `428e3f9`, `9cc37a2`,
+  `dd36f40`. Found while surveying: CDC-ECM (USB network adapters) is a
+  USB *class* driver, not on the boot path — it can move under the
+  drivers task's own authority over a USB bridge (Next 1).
 
 - 2026-11-14 (run 9): **The 82574L on its MSI-X (FREEHOLD D-252):
   `E1000.EXE` 1.1.0-1** (release `v7`, built from `ee9c9ce` against
@@ -315,30 +342,34 @@ FREEHOLD, with its own decision and gate.
 
 ## Next, in order
 
-1. INTx for drivers (E1000 on 8254x, RTL8139): needs the firmware's PCI
-   routing (ACPI `_PRT` is AML; the kernel has no AML interpreter; q35's
-   Interrupt Line holds the PIC IRQ, not the I/O APIC input). A design
-   question, not a quick change: write it as a PROPOSAL (options: a small
-   `_PRT`-only AML walker; or the MP table / `$PIR`; or keep polling for
-   INTx-only cards) and put it under "Waiting on the owner".
-2. The boot-path PROPOSAL (storage, USB — including the USB stack's
-   CDC-ECM network adapters, which are USB class drivers, not PCI — the
-   boot keyboard/console, virtio-input): loading a driver before C: is
-   mounted — write it in DECISIONS.md as a PROPOSAL and put it under
-   "Waiting on the owner".
-3. The display drivers (`bochs.rs`, `virtio_gpu.rs`, the framebuffer):
-   built in, not on the path to C:, but owned by the graphics task (its
-   native display stack, FAMILY_VIDEO, graphics/DESIGN.md). Don't move
-   them; write a PROPOSAL it can see (in DECISIONS.md and noted in
-   GRAPHICS-DEV.md's direction, not its code) of what a user-mode display
-   driver's bridge would be, and put the decision under "Waiting on the
-   owner". After 2–3 every built-in that qualifies for Part 2 has moved or
-   is with the owner.
-4. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
+1. USB network adapters (CDC-ECM) to user mode — Part 2's last network
+   driver, not on the boot path (D-254 keeps the xHCI and hubs built in).
+   The kernel gains a USB bridge for class drivers, designed generally:
+   `DRIVER_USB` — the driver is given one USB *interface* (or function)
+   that no built-in role took, matched by a new catalog line form (USB
+   vendor:product, or USB class/subclass, e.g. `USB:0525:A4A2` / a
+   `cdc-ether` class word; DRIVERS.EXE and `cargo drivers` learn it);
+   describe (device + configuration descriptors), control transfers on
+   EP0, bulk OUT, bulk/interrupt IN queued with kernel-owned buffers
+   copied in and out (the driver never sees the xHCI's DMA, so no IOMMU
+   question), a completed IN marking `EVENT_INTERRUPT` for `DRIVER_WAIT`;
+   the NIC bridge as for PCI cards. `usb/ecm.rs` (257 lines) becomes
+   `USBECM.EXE` here (`drivers/usbecm`), the built-in removed in the same
+   step (as D-231: it took every ECM adapter). Gate: stage 8's `usb`
+   machine (QEMU `usb-net`, 0525:A4A2, ECM + RNDIS configurations) — "usb:
+   net …" found, DHCP over the adapter through the driver, the host
+   reached; plus KILL and `DRIVERS /START` pinging again; stages 1, 4, 5,
+   8, 16 pass. If too big for one run: the bridge + catalog form first
+   (additive, its own commit), then the driver and the removal.
+2. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
    4 vCPUs under TCG) boots in 5-8 s, over stage 3's 5 s limit, on the
    unchanged secondary machine too; run 4 passed every other stage 3 check
    with the limit raised locally (not committed). Not a regression of the
    move; worth a word to the owner if it persists.
+3. When the owner answers D-253 / D-254 / D-255: build what he chose, each
+   its own gated increment (D-253's (A): the evaluator, `IRQ_INTX`, then
+   E1000.EXE 1.2.0 and RTL8139.EXE 1.1.0 on it; D-254's (B): DRIVER_BLOCK
+   and VIRTBLK.EXE first).
 
 ## Waiting on the owner
 
@@ -361,6 +392,28 @@ FREEHOLD, with its own decision and gate.
   publishes into this catalog, or should FREEHOLD-RTX's sources move here
   too (when you say so)?
   Answer:
+- D-253 (FREEHOLD DECISIONS.md, PROPOSAL): interrupts for devices with
+  only INTx (RTL8139, the older Intel e1000s; old PCI cards), which today
+  are polled about a thousand times a second while their driver runs.
+  Options: (A) a small evaluator in the kernel for the firmware's PCI
+  interrupt table (ACPI `_PRT`) — recommended; (B) a full ACPI (AML)
+  interpreter; (C) chipset-specific rules; (D) keep polling. Which one?
+  Answer:
+- D-254 (PROPOSAL): the drivers on the boot path — storage and USB mass
+  storage, which must work before `C:` is mounted. (A) keep them in the
+  kernel as now; (B) build them in this repository as user-mode drivers
+  and carry them inside the kernel file, started from memory before
+  `C:`, restarted if they end — recommended, one driver at a time from
+  virtio-blk; (C) the same but read from the boot partition. PS/2, the
+  serial port, the clock, the console and the USB controller stay in the
+  kernel either way. Which one?
+  Answer:
+- D-255 (PROPOSAL): the display drivers (Bochs, virtio-gpu), which belong
+  to the graphics task's stack. (A) keep them built in and build the
+  designed display bridge only when NVRTX needs to show a picture —
+  recommended; (B) move both now (a virtio-gpu-only machine's screen
+  then stays dark until `C:` is mounted); (C) move Bochs only. Which one?
+  Answer:
 
 ## Session log
 
@@ -376,3 +429,4 @@ FREEHOLD, with its own decision and gate.
 - 2026-11-13 run 7: interrupts delivered to user-mode drivers — DRIVER_IRQ (MSI/MSI-X on a vector of the driver's) and DRIVER_WAIT (D-242); VIRTNET 1.1.0-1 on MSI-X, release v5; gates 1/4/5/9/16 pass.
 - 2026-11-13 run 8: HDA.EXE 1.1.0 on its MSI (an interrupt per ~20 ms piece instead of a 2 ms poll), release v6, FREEHOLD pins v6 (D-247); gates 1/4/5/9/13/16 pass.
 - 2026-11-14 run 9: E1000.EXE 1.1.0 — the 82574L (QEMU e1000e) gated for the first time, on its MSI-X interrupt; release v7, FREEHOLD pins v7 (D-252); gates 1/4/5/16 pass.
+- 2026-11-14 run 10: PROPOSALs D-253 (INTx: the firmware's `_PRT`, read from q35's tables), D-254 (the boot path), D-255 (display) under "Waiting on the owner"; next: CDC-ECM over a USB bridge.
