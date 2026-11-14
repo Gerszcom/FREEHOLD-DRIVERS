@@ -2,29 +2,32 @@
 ; Written by FREEHOLD-DRIVERS' cargo drivers; do not edit by hand.
 ; VENDOR:DEVICE CLASS NAME VERSION BYTES SHA256 ADDRESS DESCRIPTION
 ; DEVICE is a hex id, or * for every device of that vendor in CLASS; ADDRESS
-; is relative to this file. CATALOG.SIG is its Ed25519 signature by the
+; is relative to this file. A USB driver's line is USB:VENDOR:PRODUCT CLASS ...,
+; either id * with an interface class in CLASS (cdc-ecm, or hex CC or CCSS).
+; CATALOG.SIG is its Ed25519 signature by the
 ; owner's release key (C:\FREEHOLD\RELEASE.KEY); unsigned, it is not trusted.
-; The current release: releases/v7.
-8086:100C network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v7/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
-8086:100E network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v7/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
-8086:100F network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v7/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
-8086:1010 network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v7/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
-8086:1011 network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v7/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
-8086:1026 network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v7/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
-8086:1027 network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v7/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
-8086:1076 network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v7/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
-8086:10D3 network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v7/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
-8086:2668 sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v7/HDA-1.1.0-1.ZIP Intel High Definition Audio
-8086:293E sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v7/HDA-1.1.0-1.ZIP Intel High Definition Audio
-8086:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v7/HDA-1.1.0-1.ZIP Intel High Definition Audio
-1002:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v7/HDA-1.1.0-1.ZIP Intel High Definition Audio
-1022:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v7/HDA-1.1.0-1.ZIP Intel High Definition Audio
-10DE:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v7/HDA-1.1.0-1.ZIP Intel High Definition Audio
-1106:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v7/HDA-1.1.0-1.ZIP Intel High Definition Audio
-1039:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v7/HDA-1.1.0-1.ZIP Intel High Definition Audio
-10B9:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v7/HDA-1.1.0-1.ZIP Intel High Definition Audio
-1D17:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v7/HDA-1.1.0-1.ZIP Intel High Definition Audio
-10DE:* display NVRTX 1.0.0-1 17154 ad3eca98d72a7b49be998a9309f7099b09a0bd2d057350d0abfcfc38b31419d4 releases/v7/NVRTX-1.0.0-1.ZIP NVIDIA GeForce RTX 20-50 (Turing-Blackwell)
-10EC:8139 network RTL8139 1.0.0-1 8577 0a1f2b7beb1365cf880d5cd1d8529eb36c909b64e8c99d18071734da2924d36f releases/v7/RTL8139-1.0.0-1.ZIP Realtek RTL8139 Ethernet
-1AF4:1000 network VIRTNET 1.1.0-1 25238 86c372ec853fa2000a2d83f50d0d26ab951251a5033e9c0fb8a3cfedac78c151 releases/v7/VIRTNET-1.1.0-1.ZIP virtio network device (virtio 1.x)
-1AF4:1041 network VIRTNET 1.1.0-1 25238 86c372ec853fa2000a2d83f50d0d26ab951251a5033e9c0fb8a3cfedac78c151 releases/v7/VIRTNET-1.1.0-1.ZIP virtio network device (virtio 1.x)
+; The current release: releases/v8.
+8086:100C network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v8/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:100E network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v8/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:100F network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v8/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:1010 network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v8/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:1011 network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v8/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:1026 network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v8/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:1027 network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v8/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:1076 network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v8/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:10D3 network E1000 1.1.0-1 21266 655463080063cae4828da5793da39e6d271f38b7f66c6f7c3826da68f4fafc09 releases/v8/E1000-1.1.0-1.ZIP Intel PRO/1000 (8254x, 82574L) Ethernet
+8086:2668 sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v8/HDA-1.1.0-1.ZIP Intel High Definition Audio
+8086:293E sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v8/HDA-1.1.0-1.ZIP Intel High Definition Audio
+8086:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v8/HDA-1.1.0-1.ZIP Intel High Definition Audio
+1002:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v8/HDA-1.1.0-1.ZIP Intel High Definition Audio
+1022:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v8/HDA-1.1.0-1.ZIP Intel High Definition Audio
+10DE:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v8/HDA-1.1.0-1.ZIP Intel High Definition Audio
+1106:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v8/HDA-1.1.0-1.ZIP Intel High Definition Audio
+1039:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v8/HDA-1.1.0-1.ZIP Intel High Definition Audio
+10B9:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v8/HDA-1.1.0-1.ZIP Intel High Definition Audio
+1D17:* sound HDA 1.1.0-1 30431 c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573 releases/v8/HDA-1.1.0-1.ZIP Intel High Definition Audio
+10DE:* display NVRTX 1.0.0-1 17154 ad3eca98d72a7b49be998a9309f7099b09a0bd2d057350d0abfcfc38b31419d4 releases/v8/NVRTX-1.0.0-1.ZIP NVIDIA GeForce RTX 20-50 (Turing-Blackwell)
+10EC:8139 network RTL8139 1.0.0-1 8577 0a1f2b7beb1365cf880d5cd1d8529eb36c909b64e8c99d18071734da2924d36f releases/v8/RTL8139-1.0.0-1.ZIP Realtek RTL8139 Ethernet
+USB:*:* cdc-ecm USBECM 1.0.0-1 22646 be22afbf580d43b864167f16dcfc718d3d31d2b952a50b24d6fd0c7286772f5d releases/v8/USBECM-1.0.0-1.ZIP USB Ethernet adapter (CDC ECM)
+1AF4:1000 network VIRTNET 1.1.0-1 25238 86c372ec853fa2000a2d83f50d0d26ab951251a5033e9c0fb8a3cfedac78c151 releases/v8/VIRTNET-1.1.0-1.ZIP virtio network device (virtio 1.x)
+1AF4:1041 network VIRTNET 1.1.0-1 25238 86c372ec853fa2000a2d83f50d0d26ab951251a5033e9c0fb8a3cfedac78c151 releases/v8/VIRTNET-1.1.0-1.ZIP virtio network device (virtio 1.x)
