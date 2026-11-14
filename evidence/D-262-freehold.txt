@@ -1,0 +1,104 @@
+FREEHOLD D-262 — DRIVERS.EXE for USB devices online; gates on the image built from FREEHOLD-DRIVERS release v8 (pinned), 2026-11-14T03:39Z
+FREEHOLD base 701f7c9 (then rebased onto f8801b9, below) + the D-262 kernel report / DRIVERS.EXE / gate changes; dist/BOOTX64.EFI 862208 bytes
+Host: cargo test -p get --bin drivers (x86_64-unknown-linux-gnu): 4 passed (lines, usb_lines, versions, first)
+
+== stage 1
+03:31:12 [primary] PASS stage 1
+03:31:20 [secondary] PASS stage 1
+03:31:20 gate 1: PASS
+
+== stage 4
+03:32:55 [primary] PASS stage 4
+03:34:37 [secondary] PASS stage 4
+03:34:37 gate 4: PASS
+
+== stage 5
+03:34:54 [primary] PASS stage 5
+03:35:13 [secondary] PASS stage 5
+03:35:20 [nvme] PASS stage 5
+03:35:31 [primary-reboot] PASS stage 5
+03:35:47 [primary-up] PASS stage 5
+03:35:47 gate 5: PASS
+
+== stage 8
+03:36:51 [primary] PASS stage 8
+03:37:55 [secondary] PASS stage 8
+03:38:47 [usb] PASS stage 8
+03:38:47 gate 8: PASS
+
+== stage 16
+03:20:56 [primary] PASS stage 16
+03:21:57 [secondary] PASS stage 16
+03:22:19 [rtl] PASS stage 16
+03:22:44 [e1000u] PASS stage 16
+03:23:21 [e1000e] PASS stage 16
+03:23:58 [vnetm] PASS stage 16
+03:25:00 [drvdl] PASS stage 16
+03:25:32 [usbdl] PASS stage 16
+03:26:43 [setup] PASS stage 16
+03:27:08 [cdrom] PASS stage 16
+03:27:23 [usbcd] PASS stage 16
+03:27:37 [disks] PASS stage 16
+03:27:43 [reinstall] PASS stage 16
+03:27:48 [installed] PASS stage 16
+03:27:59 [claim] PASS stage 16
+03:29:00 [install] PASS stage 16
+03:29:55 [dualboot] PASS stage 16
+03:30:45 [replace] PASS stage 16
+03:30:57 [primary-keyb] PASS stage 16
+03:31:04 [primary-region] PASS stage 16
+03:31:06 gate 16: PASS
+
+== stage 16, the usbdl machine (USB devices from the online catalog)
+03:25:03 [usbdl] ok   'process module up': 'process: task 0 is the kernel'
+03:25:04 [usbdl] ok   'C: mounted': 'fs: C: ExFat "FREEHOLD"'
+03:25:05 [usbdl] ok   'C:\\> prompt': 'C:\\>'
+03:25:05 [usbdl] ok   DRIVERS lists the USB adapter, kept for a user-mode driver, with no driver, and its interfaces
+03:25:05 [usbdl] ok   its interfaces, every configuration's, each once: 0202,0a00,0206 (ECM not the first)
+03:25:05 [usbdl] ok   the network is up on the e1000
+03:25:06 [usbdl] ok   a driver catalog signed by another key is refused
+03:25:07 [usbdl] ok   the signed catalog's USB:*:* cdc-ecm line matches the adapter's ECM interface: a driver for the USB device nothing drives is found
+03:25:07 [usbdl] ok   'DRIVERS /UPDATE offers it': 'USBECM 1.0.0-1 for 0525:a4a2 at usb0.1, which no driver drives'
+03:25:07 [usbdl] ok   'and asks': 'Install them now? (Y/N)'
+03:25:08 [usbdl] ok   'Y installs it, its hash checked': 'USBECM 1.0.0-1 installed in C:\\DRIVERS for 0525:a4a2 at usb0.1.'
+03:25:08 [usbdl] ok   'the kernel starts it at once for the USB device (DRIVERS_START)': 'drivers: started USBECM.EXE for 0525:a4a2 at usb0.1 as pid 10'
+03:25:08 [usbdl] ok   'and DRIVERS says it runs now': 'USBECM.EXE runs now for the device at usb0.1.'
+03:25:09 [usbdl] ok   USBECM runs, the adapter up, with no restart
+03:25:09 [usbdl] ok   (C:\DRIVERS holds USBECM 1.0.0-1)
+03:25:11 [usbdl] ok   its USB: line, from its INF, is first in the image's catalog, which the kernel reads at boot
+03:25:11 [usbdl] ok   then it is up to date
+03:25:11 [usbdl] ok   CONFIG.SYS set to DRIVERS=AUTO
+03:25:12 [usbdl] ok   (no look today yet, so the next boot looks)
+03:25:15 [usbdl] ok   "after the restart the kernel starts the USBECM installed online, from the image's catalog": 'drivers: started USBECM.EXE for 0525:a4a2 at usb0.1 as pid 2'
+03:25:17 [usbdl] ok   "with DRIVERS=AUTO, AUTOEXEC.BAT's DRIVERS /BOOT installs the newer USBECM at boot": 'DRIVERS: installing better drivers for this machine (CONFIG.SYS: DRIVERS=AUTO)'
+03:25:17 [usbdl] ok   'and says what changed, the old one kept': 'USBECM 1.0.0-2 installed in C:\\DRIVERS for 0525:a4a2 at usb0.1 (1.0.0-1 kept in C:\\DRIVERS\\OLD)'
+03:25:17 [usbdl] ok   'the old driver is ended': 'drivers: pid 2 ended, its device stopped'
+03:25:17 [usbdl] ok   'and the new one started at once for the device': 'drivers: started USBECM.EXE for 0525:a4a2 at usb0.1'
+03:25:17 [usbdl] ok   'which DRIVERS says': 'USBECM.EXE runs now for the device at usb'
+03:25:17 [usbdl] ok   'then the prompt': 'C:\\>'
+03:25:17 [usbdl] ok   the old driver is in C:\DRIVERS\OLD
+03:25:18 [usbdl] ok   1.0.0-2 runs, the adapter up, without a restart
+03:25:19 [usbdl] ok   (C:\DRIVERS holds USBECM 1.0.0-2)
+03:25:20 [usbdl] ok   DRIVERS /BACK restores the old USB driver
+03:25:21 [usbdl] ok   and 1.0.0-1 runs again at once
+03:25:21 [usbdl] ok   (C:\DRIVERS holds USBECM 1.0.0-1)
+03:25:22 [usbdl] ok   the version gone back from is held
+03:25:22 [usbdl] ok   (today's look forgotten)
+03:25:22 [usbdl] ok   so DRIVERS=AUTO's boot line does not install it again
+03:25:23 [usbdl] ok   /BACK again undoes it
+03:25:24 [usbdl] ok   (1.0.0-2 runs)
+03:25:25 [usbdl] ok   (C:\DRIVERS holds USBECM 1.0.0-2)
+03:25:29 [usbdl] ok   'after a restart the kernel starts USBECM for the adapter': 'drivers: started USBECM.EXE for 0525:a4a2 at usb0.1 as pid 2'
+03:25:29 [usbdl] ok   'the prompt, the boot line silent (it looked today)': 'C:\\>'
+03:25:30 [usbdl] ok   the USBECM installed online, 1.0.0-2, runs after the restart
+03:25:30 [usbdl] ok   (C:\DRIVERS holds USBECM 1.0.0-2)
+03:25:31 [usbdl] ok   'shutdown: bye': 'shutdown: bye'
+03:25:31 [usbdl] ok   "kernel enters S5 through the FADT's PM1 control": 'power: ACPI S5 (SLP_TYP 0/0)'
+03:25:31 [usbdl] ok   machine powered off through ACPI (QEMU exit code 0)
+
+== after rebasing onto FREEHOLD f8801b9 (graphics D-261: programs/gfx only, no kernel change): rebuilt, rerun
+03:41:31 [primary] PASS stage 1
+03:41:39 [secondary] PASS stage 1
+03:41:39 gate 1: PASS
+03:42:12 [usbdl] PASS stage 16
+03:42:12 gate 16: PASS

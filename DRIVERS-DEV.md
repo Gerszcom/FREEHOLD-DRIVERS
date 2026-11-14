@@ -1,4 +1,4 @@
-Run in progress: started 2026-11-14T02:59Z
+PAUSED 2026-11-14: waiting on the owner
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -65,6 +65,32 @@ class — DIRECTION.md Stage 16); build what is needed generally, in
 FREEHOLD, with its own decision and gate.
 
 ## Where things stand
+
+- 2026-11-14 (run 12): **DRIVERS.EXE for USB devices online (FREEHOLD
+  D-262) — Part 1's downloading now covers the USB devices kept for
+  user-mode drivers.** The kernel's `DRIVERS` report ends each `USB
+  devices:` line with `ifaces CCSS,...` (every interface of every
+  configuration, each once; QEMU's usb-net: `0202,0a00,0206`, its ECM
+  interface after RNDIS); DRIVERS.EXE parses the online catalog's `USB:`
+  lines as the kernel does and matches them only against USB devices, by
+  IDs and any interface of the class; everything after the match is the
+  PCI path (offer for a device nothing drives, newer version with the old
+  kept, fuller driver, holds, `/BACK`, the boot line, the INF's `USB:`
+  lines first in the image's catalog). No new system call, no change in
+  this repository (no release: the root catalog stays v8's). Kernel
+  861696 → 862208 bytes. Gate: new stage 16 machine `usbdl` (drvdl's e1000
+  + `qemu-xhci`/`usb-net`, test image without USBECM, test catalogs signed
+  with a test key): other-key catalog refused, USBECM 1.0.0-1 found and
+  installed for the adapter and running at once, started by the kernel
+  after a restart, AUTO installs 1.0.0-2 at boot with 1.0.0-1 kept and runs
+  it at once, `/BACK` both ways (hold respected by the boot line), 1.0.0-2
+  runs after another restart. Stages 1, 4, 5, 8, 16 pass
+  (`evidence/D-262-freehold.txt`). FREEHOLD `2052a4d`. The SETUP and
+  graphics tasks took D-260 and D-261 while this run's gates ran; this
+  run's decision is D-262 (stage 1 and usbdl rerun after the rebase).
+  **With this, every unblocked item is done: the task is paused, waiting on
+  the owner** (the catalog's signature and RELEASE.KEY; the NVRTX question;
+  D-253, D-254, D-255).
 
 - 2026-11-14 (run 11): **USB network adapters moved to user mode and the
   built-in removed in one step (FREEHOLD D-259): the USB bridge
@@ -375,26 +401,14 @@ FREEHOLD, with its own decision and gate.
 
 ## Next, in order
 
-1. DRIVERS.EXE for USB devices online (Part 1 for the new line form): parse
-   the signed catalog's `USB:` lines (vendor/product or `*`, interface
-   class) and match them against the `USB devices:` list — which needs the
-   kernel to list each kept device's interfaces (today one `class CCSS`,
-   the catalog-matched one or the first; e.g. add `ifaces 0202,0a00,0206,
-   0a00`), so a device nothing local drives is found and a newer USBECM is
-   offered/installed with the old kept, `/BACK`, the boot line. Gate: a
-   stage 16 machine like `drvdl` with `qemu-xhci` + `usb-net` and a test
-   catalog (test key) offering USBECM 1.0.1-1 (a test zip whose INF says
-   1.0.1-1): AUTO installs it at boot, it runs after a restart, `/BACK`;
-   plus a `USB:` line for a device nothing drives (e.g. QEMU `usb-serial`
-   with a stub test driver) found and installed — or drop that half if no
-   test driver is cheap. Stages 1, 4, 5, 8, 16 pass.
-2. After that, every unblocked Part 2 item is done (the HID mouse lives
-   in `hid.rs` with the boot keyboard, the PS/2 mouse in `ps2.rs` with the
-   8042's keyboard port: both stay with the boot path, D-254). Unless a
-   new unblocked item is found, the run after Next 1 should judge
-   BLOCKED and pause (step 10): what is left is the owner's signature on
-   the catalog (and RELEASE.KEY in the image), the NVRTX question, and
-   D-253 / D-254 / D-255.
+1. Nothing unblocked is left (run 12 judged BLOCKED and paused the task).
+   When the owner answers below, remove the PAUSED line and build what he
+   chose: each its own gated increment (see 4).
+2. If the owner signs `CATALOG.TXT`: check `CATALOG.SIG` against his
+   `RELEASE.KEY` (`openssl pkeyutl -verify -pubin -inkey RELEASE.KEY -rawin
+   -in CATALOG.TXT -sigfile CATALOG.SIG`), put his key in FREEHOLD's
+   `system/FREEHOLD/RELEASE.KEY` (D-212) if it is not there, and gate a
+   real-catalog `DRIVERS /CHECK` (up to date) on stage 16.
 3. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
    4 vCPUs under TCG) boots in 5-8 s, over stage 3's 5 s limit, on the
    unchanged secondary machine too; run 4 passed every other stage 3 check
@@ -465,3 +479,4 @@ FREEHOLD, with its own decision and gate.
 - 2026-11-14 run 9: E1000.EXE 1.1.0 — the 82574L (QEMU e1000e) gated for the first time, on its MSI-X interrupt; release v7, FREEHOLD pins v7 (D-252); gates 1/4/5/16 pass.
 - 2026-11-14 run 10: PROPOSALs D-253 (INTx: the firmware's `_PRT`, read from q35's tables), D-254 (the boot path), D-255 (display) under "Waiting on the owner"; next: CDC-ECM over a USB bridge.
 - 2026-11-14 run 11: the USB bridge (DRIVER_USB) and USBECM.EXE (CDC ECM in user mode), release v8, the built-in ecm.rs removed (D-259); gates 1/4/5/8/16 pass.
+- 2026-11-14 run 12: DRIVERS.EXE matches the online catalog's USB: lines against every interface of a USB device (the report's `ifaces`), gated on stage 16 usbdl (D-262); gates 1/4/5/8/16 pass; every unblocked item done — paused, waiting on the owner.
