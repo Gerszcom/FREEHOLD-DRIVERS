@@ -5,7 +5,7 @@
 ; to replace, and the 82544GC (100C), which the built-in never covered.
 [Driver]
 Name=E1000
-Version=1.0.0-1
+Version=1.1.0-1
 File=E1000.EXE
 Description=Intel PRO/1000 (8254x, 82574L) Ethernet
 Licence=MIT
