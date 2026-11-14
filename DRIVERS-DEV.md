@@ -1,4 +1,3 @@
-Run in progress: started 2026-11-14T01:59Z
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -65,6 +64,38 @@ class — DIRECTION.md Stage 16); build what is needed generally, in
 FREEHOLD, with its own decision and gate.
 
 ## Where things stand
+
+- 2026-11-14 (run 11): **USB network adapters moved to user mode and the
+  built-in removed in one step (FREEHOLD D-259): the USB bridge
+  (`DRIVER_USB`) and `USBECM.EXE`** (`drivers/usbecm`, 1.0.0-1, release
+  `v8`, built from `7e2f1db` against FREEHOLD `e4c70a4`; the other five
+  zips v7's byte for byte; `evidence/v8-build.txt`). The kernel keeps any
+  USB device no built-in role takes (not hub / boot keyboard or mouse /
+  storage) for a user-mode driver, matched by a new catalog line form
+  `USB:VENDOR:PRODUCT CLASS FILE DESCRIPTION` (either id `*` with an
+  interface class: `cdc-ecm`, hex `CC` / `CCSS`); the driver's device is a
+  `Place::Usb { controller, slot }` (PCI's `Place::Pci`), `DRIVER_DEVICE`
+  says `BUS_USB` at byte 7; `DRIVER_USB` (0x008B) = DESCRIBE, CONFIGURE
+  (once), CONTROL (not SET_ADDRESS/SET_CONFIGURATION), OUT (copied into a
+  16 KiB kernel buffer), IN_START (≤ 16 × ≤ 4 KiB kept queued in kernel
+  memory), IN_TAKE (copied out; 64 kept); a completion signals
+  `EVENT_INTERRUPT`. The driver never sees a physical address. Streams and
+  the configuration belong to the device, so `DRIVERS /START` takes over.
+  `DRIVERS` lists `USB devices:` (`usbC.S VVVV:PPPP class CCSS FILE`) and a
+  USB driver's `wake-ups: N`; DRIVERS.EXE reads that list for `/START` and
+  `/BACK` only (online offers for USB devices: Next 1). `cargo drivers`
+  accepts `USB:` `[Devices]` lines. USBECM ignores the ECM notification
+  endpoint (QEMU's adapter answers every poll, ~30/s — seen in the first
+  gate run: 315 wake-ups in 10 s idle). Measured: idle 10 s → 10 wake-ups;
+  1 MiB over TCP in ~1 s. Kernel 848896 → 861696 bytes (the bridge and the
+  USB catalog outweigh ecm.rs). Gate: stage 8 `usb` machine (see D-259);
+  stages 1, 4, 5, 8, 16 pass on the image built from pinned v8
+  (`evidence/D-259-freehold.txt`).
+  FREEHOLD `e4c70a4` (ABI + runtime, additive, pushed first), then
+  `c110732` (kernel, catalog, pin v8, gate, docs).
+  With this, **no network or sound driver is left in the kernel**; what
+  is left built in is the boot path (D-254: storage, xHCI + hubs, HID,
+  PS/2, serial, RTC, console) and the display (D-255).
 
 - 2026-11-14 (run 10): **The three designs Part 2 needed from the owner,
   written as PROPOSALs in FREEHOLD's DECISIONS.md (documentation only; no
@@ -343,31 +374,32 @@ FREEHOLD, with its own decision and gate.
 
 ## Next, in order
 
-1. USB network adapters (CDC-ECM) to user mode — Part 2's last network
-   driver, not on the boot path (D-254 keeps the xHCI and hubs built in).
-   The kernel gains a USB bridge for class drivers, designed generally:
-   `DRIVER_USB` — the driver is given one USB *interface* (or function)
-   that no built-in role took, matched by a new catalog line form (USB
-   vendor:product, or USB class/subclass, e.g. `USB:0525:A4A2` / a
-   `cdc-ether` class word; DRIVERS.EXE and `cargo drivers` learn it);
-   describe (device + configuration descriptors), control transfers on
-   EP0, bulk OUT, bulk/interrupt IN queued with kernel-owned buffers
-   copied in and out (the driver never sees the xHCI's DMA, so no IOMMU
-   question), a completed IN marking `EVENT_INTERRUPT` for `DRIVER_WAIT`;
-   the NIC bridge as for PCI cards. `usb/ecm.rs` (257 lines) becomes
-   `USBECM.EXE` here (`drivers/usbecm`), the built-in removed in the same
-   step (as D-231: it took every ECM adapter). Gate: stage 8's `usb`
-   machine (QEMU `usb-net`, 0525:A4A2, ECM + RNDIS configurations) — "usb:
-   net …" found, DHCP over the adapter through the driver, the host
-   reached; plus KILL and `DRIVERS /START` pinging again; stages 1, 4, 5,
-   8, 16 pass. If too big for one run: the bridge + catalog form first
-   (additive, its own commit), then the driver and the removal.
-2. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
+1. DRIVERS.EXE for USB devices online (Part 1 for the new line form): parse
+   the signed catalog's `USB:` lines (vendor/product or `*`, interface
+   class) and match them against the `USB devices:` list — which needs the
+   kernel to list each kept device's interfaces (today one `class CCSS`,
+   the catalog-matched one or the first; e.g. add `ifaces 0202,0a00,0206,
+   0a00`), so a device nothing local drives is found and a newer USBECM is
+   offered/installed with the old kept, `/BACK`, the boot line. Gate: a
+   stage 16 machine like `drvdl` with `qemu-xhci` + `usb-net` and a test
+   catalog (test key) offering USBECM 1.0.1-1 (a test zip whose INF says
+   1.0.1-1): AUTO installs it at boot, it runs after a restart, `/BACK`;
+   plus a `USB:` line for a device nothing drives (e.g. QEMU `usb-serial`
+   with a stub test driver) found and installed — or drop that half if no
+   test driver is cheap. Stages 1, 4, 5, 8, 16 pass.
+2. After that, every unblocked Part 2 item is done (the HID mouse lives
+   in `hid.rs` with the boot keyboard, the PS/2 mouse in `ps2.rs` with the
+   8042's keyboard port: both stay with the boot path, D-254). Unless a
+   new unblocked item is found, the run after Next 1 should judge
+   BLOCKED and pause (step 10): what is left is the owner's signature on
+   the catalog (and RELEASE.KEY in the image), the NVRTX question, and
+   D-253 / D-254 / D-255.
+3. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
    4 vCPUs under TCG) boots in 5-8 s, over stage 3's 5 s limit, on the
    unchanged secondary machine too; run 4 passed every other stage 3 check
    with the limit raised locally (not committed). Not a regression of the
    move; worth a word to the owner if it persists.
-3. When the owner answers D-253 / D-254 / D-255: build what he chose, each
+4. When the owner answers D-253 / D-254 / D-255: build what he chose, each
    its own gated increment (D-253's (A): the evaluator, `IRQ_INTX`, then
    E1000.EXE 1.2.0 and RTL8139.EXE 1.1.0 on it; D-254's (B): DRIVER_BLOCK
    and VIRTBLK.EXE first).
@@ -375,7 +407,7 @@ FREEHOLD, with its own decision and gate.
 ## Waiting on the owner
 
 - Sign the online driver catalog, `CATALOG.TXT` at the top of this
-  repository (now release v7's, addresses into `releases/v7/`); machines read
+  repository (now release v8's, addresses into `releases/v8/`); machines read
   it with `DRIVERS /UPDATE` and at boot (FREEHOLD D-219) and refuse it
   unsigned. In a checkout of this repository, `cargo drivers sign` prints
   the exact lines (two `openssl` lines — sign, then verify against
@@ -431,3 +463,4 @@ FREEHOLD, with its own decision and gate.
 - 2026-11-13 run 8: HDA.EXE 1.1.0 on its MSI (an interrupt per ~20 ms piece instead of a 2 ms poll), release v6, FREEHOLD pins v6 (D-247); gates 1/4/5/9/13/16 pass.
 - 2026-11-14 run 9: E1000.EXE 1.1.0 — the 82574L (QEMU e1000e) gated for the first time, on its MSI-X interrupt; release v7, FREEHOLD pins v7 (D-252); gates 1/4/5/16 pass.
 - 2026-11-14 run 10: PROPOSALs D-253 (INTx: the firmware's `_PRT`, read from q35's tables), D-254 (the boot path), D-255 (display) under "Waiting on the owner"; next: CDC-ECM over a USB bridge.
+- 2026-11-14 run 11: the USB bridge (DRIVER_USB) and USBECM.EXE (CDC ECM in user mode), release v8, the built-in ecm.rs removed (D-259); gates 1/4/5/8/16 pass.

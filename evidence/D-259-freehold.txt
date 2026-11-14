@@ -1,0 +1,82 @@
+FREEHOLD D-259 — gates on the image built from FREEHOLD-DRIVERS release v8 (pinned at 00ddfa9), 2026-11-14T02:49Z
+FREEHOLD base e4c70a4 + the D-259 kernel/catalog/gate changes; dist/BOOTX64.EFI 861696 bytes
+
+== stage 1
+02:35:54 [primary] PASS stage 1
+02:35:59 [secondary] PASS stage 1
+02:35:59 gate 1: PASS
+== stage 4
+02:37:30 [primary] PASS stage 4
+02:39:05 [secondary] PASS stage 4
+02:39:05 gate 4: PASS
+== stage 5
+02:39:19 [primary] PASS stage 5
+02:39:34 [secondary] PASS stage 5
+02:39:39 [nvme] PASS stage 5
+02:39:47 [primary-reboot] PASS stage 5
+02:40:00 [primary-up] PASS stage 5
+02:40:00 gate 5: PASS
+== stage 8
+02:33:58 [primary] PASS stage 8
+02:35:01 [secondary] PASS stage 8
+02:35:49 [usb] PASS stage 8
+02:35:49 gate 8: PASS
+== stage 16
+02:40:47 [primary] PASS stage 16
+02:41:35 [secondary] PASS stage 16
+02:41:55 [rtl] PASS stage 16
+02:42:17 [e1000u] PASS stage 16
+02:42:51 [e1000e] PASS stage 16
+02:43:24 [vnetm] PASS stage 16
+02:44:13 [drvdl] PASS stage 16
+02:45:14 [setup] PASS stage 16
+02:45:36 [cdrom] PASS stage 16
+02:45:46 [usbcd] PASS stage 16
+02:46:01 [disks] PASS stage 16
+02:46:05 [reinstall] PASS stage 16
+02:46:08 [installed] PASS stage 16
+02:46:16 [claim] PASS stage 16
+02:47:11 [install] PASS stage 16
+02:48:00 [dualboot] PASS stage 16
+02:48:10 [primary-keyb] PASS stage 16
+02:48:17 [primary-region] PASS stage 16
+02:48:18 gate 16: PASS
+
+== stage 8, the usb machine (USBECM.EXE over the USB bridge)
+02:35:04 [usb] ok   'USB network adapter found and kept for its user-mode driver (D-259)': 'usb: 0525:a4a2 full speed, hub port 1, RNDIS/QEMU USB Network Device (class 0202), kept for a user-mode driver'
+02:35:04 [usb] ok   'C: mounted': 'fs: C: ExFat "FREEHOLD"'
+02:35:04 [usb] ok   "the USB stick's FAT32 partition is E: (MBR)": 'fs: E: Fat32 "STICK"'
+02:35:05 [usb] ok   'C:\\> prompt': 'C:\\>'
+02:35:08 [usb] ok   'the USB keyboard types at the prompt': 'typed on a USB keyboard'
+02:35:09 [usb] ok   "EDIT's menu bar": on screen 'File  Edit  Search  Run  Help'
+02:35:11 [usb] ok   'a click of the USB mouse opened the File menu': on screen 'Save As...'
+02:35:14 [usb] shot usb-usb-mouse-menu.png
+02:35:17 [usb] ok   'a file read from the USB stick': 'FREEHOLD reads this from a USB stick.'
+02:35:20 [usb] ok   'a file written to the USB stick': '1 file(s) copied'
+02:35:21 [usb] ok   '^GATE\\.TXT': 'GATE.TXT'
+02:35:21 [usb] ok   'the kernel starts USBECM.EXE from the catalog for the USB adapter': 'drivers: started USBECM.EXE for 0525:a4a2 at usb0.5 as pid 1'
+02:35:21 [usb] ok   'USBECM.EXE brings the adapter up as a network interface': 'drivers: pid 1 up as a network interface, MAC 40:54:00:12:34:56'
+02:35:21 [usb] ok   'with the ECM configuration it chose from the descriptors': 'USBECM: 0525:a4a2 on usb0.5 up, MAC 40:54:00:12:34:56, configuration 1'
+02:35:21 [usb] ok   no built-in USB network driver
+02:35:25 [usb] ok   'C:\\DRIVERS\\USBECM.INF: version 1.0.0-1': 'Version=1.0.0-1'
+02:35:25 [usb] ok   "the image's USBECM came from FREEHOLD-DRIVERS' pinned release, built from a named commit": 'Source=https://github.com/Gerszcom/FREEHOLD-DRIVERS 7e2f1db74b867a5540019ccac6e7afd79d411400, built against'
+02:35:25 [usb] ok   DRIVERS lists USBECM.EXE as running
+02:35:25 [usb] ok   with the status it posted
+02:35:25 [usb] ok   DRIVERS lists the USB devices kept for user-mode drivers
+02:35:25 [usb] ok   the adapter, its ECM interface, and its driver
+02:35:37 [usb] ok   idle 10 s, USBECM.EXE woke 11 times (woken only by its transfers and a 1 s look)
+02:35:38 [usb] ok   'DHCP over the USB network adapter': '10.0.2.15'
+02:35:41 [usb] ok   'the host answers through the USB adapter': 'Reply from 10.0.2.2'
+02:35:42 [usb] ok   a megabyte comes over TCP through USBECM.EXE
+02:35:43 [usb] ok   every byte of it
+02:35:43 [usb] ok   removed again
+02:35:43 [usb] ok   'the killed USB driver ended, its device let go': 'drivers: pid 1 ended, its device stopped'
+02:35:46 [usb] ok   "the prompt is unaffected by the driver's death": 'the prompt is still here'
+02:35:47 [usb] ok   DRIVERS /START starts USBECM.EXE again for the USB adapter
+02:35:47 [usb] ok   'the new driver takes the same interface': 'drivers: pid 13 up as a network interface'
+02:35:48 [usb] ok   the host answers ping again through the driver started again
+02:35:49 [usb] ok   'shutdown: bye': 'shutdown: bye'
+02:35:49 [usb] ok   "kernel enters S5 through the FADT's PM1 control": 'power: ACPI S5 (SLP_TYP 0/0)'
+02:35:49 [usb] ok   machine powered off through ACPI (QEMU exit code 0)
+02:35:49 [usb] ok   host read-back: GATE.TXT on the stick is AUTOEXEC.BAT; mtools reads the volume (0)
+02:35:49 [usb] PASS stage 8
