@@ -1,0 +1,17 @@
+; USBECM.EXE's description, for cargo drivers: it goes into the zip as
+; USBECM.INF (with Source= added) and into CATALOG.TXT as one line per
+; [Devices] entry. Raise Version= for every change that is published.
+; The kernel's built-in CDC Ethernet driver took every USB adapter with an
+; ECM configuration, whatever its IDs; this driver replaces it (D-259), so
+; its one line is the class: any vendor, any product, an interface of
+; class 02h subclass 06h (communications, Ethernet Control Model).
+[Driver]
+Name=USBECM
+Version=1.0.0-1
+File=USBECM.EXE
+Description=USB Ethernet adapter (CDC ECM)
+Licence=MIT
+Basic=Yes
+
+[Devices]
+USB:*:* cdc-ecm

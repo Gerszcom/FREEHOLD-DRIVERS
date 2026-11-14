@@ -24,8 +24,8 @@
 //! FREEHOLD commits it was built from) into `NAME-VERSION.ZIP`, entries
 //! stored, sorted and dated 2026-01-01 so the same files always give the
 //! same zip, and writes `CATALOG.TXT` (one line per device:
-//! `VENDOR:DEVICE CLASS NAME VERSION BYTES SHA256 ADDRESS DESCRIPTION`) and
-//! `SHA256SUMS`.
+//! `VENDOR:DEVICE CLASS NAME VERSION BYTES SHA256 ADDRESS DESCRIPTION`, a
+//! USB driver's `USB:VENDOR:PRODUCT CLASS ...`, D-259) and `SHA256SUMS`.
 #![forbid(unsafe_code)]
 
 use std::fmt::Write as _;
@@ -185,8 +185,12 @@ fn parse_inf(crate_name: &str, path: &Path) -> Result<Driver> {
             let [id, class] = f[..] else {
                 return Err(bad(format!("a [Devices] line is VENDOR:DEVICE CLASS, not {line:?}")));
             };
-            devices.push((check_id(id).ok_or_else(|| bad(format!("bad device {id:?}")))?,
-                           check_class(class).ok_or_else(|| bad(format!("bad class {class:?}")))?));
+            let (id, class) = (check_id(id).ok_or_else(|| bad(format!("bad device {id:?}")))?,
+                               check_class(class).ok_or_else(|| bad(format!("bad class {class:?}")))?);
+            if !check_line(&id, &class) {
+                return Err(bad(format!("a USB wildcard needs an interface class, not {class:?}")));
+            }
+            devices.push((id, class));
         }
     }
     let key = |k: &str| {
@@ -214,18 +218,35 @@ fn dos_char(b: u8) -> bool {
     b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_' || b == b'-'
 }
 
-/// `VENDOR:DEVICE` — four hex digits, and four more or `*` (D-196).
+/// `VENDOR:DEVICE` — four hex digits, and four more or `*` (D-196); or a
+/// USB device's `USB:VENDOR:PRODUCT`, each four hex digits or `*` (D-259).
 fn check_id(id: &str) -> Option<String> {
-    let (v, d) = id.split_once(':')?;
     let hex4 = |s: &str| s.len() == 4 && s.bytes().all(|b| b.is_ascii_hexdigit());
+    if let Some(usb) = id.strip_prefix("USB:").or_else(|| id.strip_prefix("usb:")) {
+        let (v, p) = usb.split_once(':')?;
+        return ((v == "*" || hex4(v)) && (p == "*" || hex4(p))).then(|| format!("USB:{}", usb.to_ascii_uppercase()));
+    }
+    let (v, d) = id.split_once(':')?;
     (hex4(v) && (d == "*" || hex4(d))).then(|| id.to_ascii_uppercase())
 }
 
+/// A PCI line's class word or two hex digits; a USB line's interface class
+/// (D-259): `cdc-ecm`, or `CC` / `CCSS` in hex.
 fn check_class(c: &str) -> Option<String> {
     let c = c.to_ascii_lowercase();
-    let known = ["network", "display", "storage", "sound", "audio", "input", "usb", "serial"];
-    (known.contains(&c.as_str()) || (c.len() == 2 && c.bytes().all(|b| b.is_ascii_hexdigit())))
-        .then_some(c)
+    let known = ["network", "display", "storage", "sound", "audio", "input", "usb", "serial", "cdc-ecm"];
+    let hex = |n: usize| c.len() == n && c.bytes().all(|b| b.is_ascii_hexdigit());
+    (known.contains(&c.as_str()) || hex(2) || hex(4)).then_some(c)
+}
+
+/// A `[Devices]` line's class for its ID: a USB ID's must say which
+/// interfaces when the vendor or product is `*`, as a PCI wildcard must
+/// (D-196, D-259).
+fn check_line(id: &str, class: &str) -> bool {
+    match id.strip_prefix("USB:") {
+        Some(usb) => !usb.contains('*') || class == "cdc-ecm" || class.len() == 2 || class.len() == 4,
+        None => true,
+    }
 }
 
 fn package(root: &Path, freehold: &Path, drivers: &[Driver], dist: &Path, published: bool) -> Result<()> {
@@ -273,7 +294,9 @@ fn package(root: &Path, freehold: &Path, drivers: &[Driver], dist: &Path, publis
         "; Written by FREEHOLD-DRIVERS' cargo drivers; do not edit by hand.",
         "; VENDOR:DEVICE CLASS NAME VERSION BYTES SHA256 ADDRESS DESCRIPTION",
         "; DEVICE is a hex id, or * for every device of that vendor in CLASS; ADDRESS",
-        "; is relative to this file. CATALOG.SIG is its Ed25519 signature by the",
+        "; is relative to this file. A USB driver's line is USB:VENDOR:PRODUCT CLASS ...,",
+        "; either id * with an interface class in CLASS (cdc-ecm, or hex CC or CCSS).",
+        "; CATALOG.SIG is its Ed25519 signature by the",
         "; owner's release key (C:\\FREEHOLD\\RELEASE.KEY); unsigned, it is not trusted.",
     ]
     .iter()
