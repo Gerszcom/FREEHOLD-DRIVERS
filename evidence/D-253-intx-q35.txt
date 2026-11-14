@@ -1,0 +1,127 @@
+D-253 (PROPOSAL) evidence: how the gate's machine (QEMU q35 + OVMF) routes PCI INTx.
+Captured 2026-11-14 by the drivers task, run 10.
+
+Method: qemu-system-x86_64 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18) -machine q35 -m 256, OVMF_CODE_4M.fd (Debian ovmf),
+a virtio-blk FAT disk at 00:02, e1000 at 00:03, rtl8139 at 00:04 (romfile= empty),
+booted to OVMF's internal UEFI shell, startup.nsh: 'dmem' + 'memmap' (table pointers,
+the ACPI reclaim range), then 'dmem F76D000 12000' (all of ACPI_Recl, 18 pages) and
+'dmem E0000 20000' + 'dmem 9FC00 400' (BIOS area, EBDA). The hex dump was turned back
+into bytes, the DSDT cut out by its length (8424 bytes, checksum 0) and disassembled
+with iasl -d (version 20230628).
+
+== Tables in ACPI_Recl (signature, offset, length; checksums valid) ==
+XSDT 84, FACP 244, DSDT 8424, APIC 120, HPET 56, MCFG 60, WAET 40; no SSDT.
+
+== MP table / $PIR ==
+Searched E0000-FFFFF and 9FC00-9FFFF for '_MP_', '$PIR', 'RSD PTR': none found.
+
+== MADT (APIC) ==
+I/O APIC id 0 at 0xFEC00000, GSI base 0
+Overrides: ISA 0 -> GSI 2 (flags 0); ISA 5, 9, 10, 11 -> same GSI, flags 0xD (level, active high)
+None for GSI 16-23.
+
+== DSDT: _PIC and _PRT (iasl -d, lines as printed) ==
+    Name (PICF, Zero)
+    Method (_PIC, 1, NotSerialized)  // _PIC: Interrupt Model
+    {
+        PICF = Arg0
+    }
+
+    ...
+            Method (_PRT, 0, NotSerialized)  // _PRT: PCI Routing Table
+            {
+                If ((PICF == Zero))
+                {
+                    Return (PRTP) /* \_SB_.PCI0.PRTP */
+                }
+                Else
+                {
+                    Return (PRTA) /* \_SB_.PCI0.PRTA */
+                }
+            }
+
+== DSDT: PRTA (APIC mode) entries for the slots on this machine ==
+slot  2 pin A -> source GSIG, index Zero
+slot  2 pin B -> source GSIH, index Zero
+slot  2 pin C -> source GSIE, index Zero
+slot  2 pin D -> source GSIF, index Zero
+slot  3 pin A -> source GSIH, index Zero
+slot  3 pin B -> source GSIE, index Zero
+slot  3 pin C -> source GSIF, index Zero
+slot  3 pin D -> source GSIG, index Zero
+slot  4 pin A -> source GSIE, index Zero
+slot  4 pin B -> source GSIF, index Zero
+slot  4 pin C -> source GSIG, index Zero
+slot  4 pin D -> source GSIH, index Zero
+slot  7 pin A -> source GSIH, index Zero
+slot  7 pin B -> source GSIE, index Zero
+slot  7 pin C -> source GSIF, index Zero
+slot  7 pin D -> source GSIG, index Zero
+slot 31 pin A -> source GSIA, index Zero
+slot 31 pin B -> source GSIB, index Zero
+slot 31 pin C -> source GSIC, index Zero
+slot 31 pin D -> source GSID, index Zero
+(128 entries: 32 slots x 4 pins; PRTP, the 8259-mode table, names LNKA-LNKH instead.)
+
+== DSDT: a GSI link device (GSIA; GSIB-GSIH likewise, _UID/GSI 0x11-0x17) ==
+        Device (GSIA)
+        {
+            Name (_HID, EisaId ("PNP0C0F") /* PCI Interrupt Link Device */)  // _HID: Hardware ID
+            Name (_UID, 0x10)  // _UID: Unique ID
+            Name (_PRS, ResourceTemplate ()  // _PRS: Possible Resource Settings
+            {
+                Interrupt (ResourceConsumer, Level, ActiveHigh, Shared, ,, )
+                {
+                    0x00000010,
+                }
+            })
+            Name (_CRS, ResourceTemplate ()  // _CRS: Current Resource Settings
+            {
+                Interrupt (ResourceConsumer, Level, ActiveHigh, Shared, ,, )
+                {
+                    0x00000010,
+                }
+            })
+            Method (_DIS, 0, NotSerialized)  // _DIS: Disable Device
+            {
+            }
+
+            Method (_SRS, 1, NotSerialized)  // _SRS: Set Resource Settings
+            {
+            }
+
+== DSDT: an 8259-mode link device (LNKA), whose _CRS reads a chipset register ==
+        Device (LNKA)
+        {
+            Name (_HID, EisaId ("PNP0C0F") /* PCI Interrupt Link Device */)  // _HID: Hardware ID
+            Name (_UID, Zero)  // _UID: Unique ID
+            Name (_PRS, ResourceTemplate ()  // _PRS: Possible Resource Settings
+            {
+                Interrupt (ResourceConsumer, Level, ActiveHigh, Shared, ,, )
+                {
+                    0x00000005,
+                    0x0000000A,
+                    0x0000000B,
+                }
+            })
+            Method (_STA, 0, NotSerialized)  // _STA: Status
+            {
+                Return (IQST (PRQA))
+            }
+
+            Method (_DIS, 0, NotSerialized)  // _DIS: Disable Device
+            {
+                PRQA |= 0x80
+            }
+
+            Method (_CRS, 0, NotSerialized)  // _CRS: Current Resource Settings
+            {
+                Return (IQCR (PRQA))
+            }
+
+            Method (_SRS, 1, NotSerialized)  // _SRS: Set Resource Settings
+            {
+                CreateDWordField (Arg0, 0x05, PRRI)
+                PRQA = PRRI /* \_SB_.LNKA._SRS.PRRI */
+            }
+        }
