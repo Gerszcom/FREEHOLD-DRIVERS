@@ -1,5 +1,3 @@
-Run in progress: started 2026-11-14T00:00Z
-
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -67,6 +65,25 @@ FREEHOLD, with its own decision and gate.
 
 ## Where things stand
 
+- 2026-11-14 (run 9): **The 82574L on its MSI-X (FREEHOLD D-252):
+  `E1000.EXE` 1.1.0-1** (release `v7`, built from `ee9c9ce` against
+  FREEHOLD `b84bcdc`; the other four zips v6's byte for byte). No kernel
+  change. QEMU's `e1000e` (8086:10D3) worked with the legacy descriptors
+  as they were (RFCTL.EXTEN / DEXT clear); its EERD layout differs
+  (address bit 2, done bit 1) — the driver tries the card's own layout,
+  then the other (the MAC came from RAL0 on QEMU, so the EEPROM path is
+  not exercised there). On MSI-X: IVAR aims RXQ0/TXQ0/OTHER at entry 0,
+  CTRL_EXT.PBA_SUPPORT, IMS = RXQ0|TXQ0|OTHER|LSC; on every wake (and
+  timeout) ICR is read and written back (W1C; MSI-X reads don't clear)
+  before the rings. MSI-only cards get RXT0|TXDW|LSC|RXDMT0|RXO; none
+  (QEMU's 8254x) → polled through `DRIVER_WAIT(1)`. Measured: idle 10 s
+  no interrupt, 10–11 wake-ups; 2 MiB took ~410 interrupts, ~580
+  wake-ups. Gate: new stage 16 machine `e1000e` (`user_nic_checks`,
+  `irq="MSI-X"`); `e1000u` checks 1.1.0-1 still polled (`E1000_VERSION`
+  in gate.py). Stages 1, 4, 5, 16 pass (`evidence/D-252-freehold.txt`).
+  FREEHOLD `86f7ffd`. The E1000 commit here (`ee9c9ce`) says "D-250": the
+  SETUP and graphics tasks took D-250 and D-251 while this run's gates
+  ran; the decision is D-252.
 - 2026-11-13 (run 8): **HD Audio on its MSI (FREEHOLD D-247): `HDA.EXE`
   1.1.0-1** (release `v6`, built from `9267a84` against FREEHOLD
   `a7e80e2`; the other four zips v5's byte for byte). No kernel change:
@@ -297,32 +314,26 @@ FREEHOLD, with its own decision and gate.
 
 ## Next, in order
 
-1. E1000.EXE on MSI where the card has it — first check E1000.EXE really
-   drives QEMU's `e1000e` (82574L, 8086:10D3, in its catalog but never
-   gated; its registers differ from the 8254x in places: EIAC/IAM, the
-   extended interrupt and receive descriptor formats are optional), add a
-   stage 16 machine for it (`user_nic_checks`), then MSI or MSI-X there
-   (the 82574L has both; the 8254x in QEMU have none).
-2. INTx for drivers (E1000 on 8254x, RTL8139): needs the firmware's PCI
+1. INTx for drivers (E1000 on 8254x, RTL8139): needs the firmware's PCI
    routing (ACPI `_PRT` is AML; the kernel has no AML interpreter; q35's
    Interrupt Line holds the PIC IRQ, not the I/O APIC input). A design
    question, not a quick change: write it as a PROPOSAL (options: a small
    `_PRT`-only AML walker; or the MP table / `$PIR`; or keep polling for
    INTx-only cards) and put it under "Waiting on the owner".
-3. The boot-path PROPOSAL (storage, USB — including the USB stack's
+2. The boot-path PROPOSAL (storage, USB — including the USB stack's
    CDC-ECM network adapters, which are USB class drivers, not PCI — the
    boot keyboard/console, virtio-input): loading a driver before C: is
    mounted — write it in DECISIONS.md as a PROPOSAL and put it under
    "Waiting on the owner".
-4. The display drivers (`bochs.rs`, `virtio_gpu.rs`, the framebuffer):
+3. The display drivers (`bochs.rs`, `virtio_gpu.rs`, the framebuffer):
    built in, not on the path to C:, but owned by the graphics task (its
    native display stack, FAMILY_VIDEO, graphics/DESIGN.md). Don't move
    them; write a PROPOSAL it can see (in DECISIONS.md and noted in
    GRAPHICS-DEV.md's direction, not its code) of what a user-mode display
    driver's bridge would be, and put the decision under "Waiting on the
-   owner". After 3–4 every built-in that qualifies for Part 2 has moved or
+   owner". After 2–3 every built-in that qualifies for Part 2 has moved or
    is with the owner.
-5. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
+4. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
    4 vCPUs under TCG) boots in 5-8 s, over stage 3's 5 s limit, on the
    unchanged secondary machine too; run 4 passed every other stage 3 check
    with the limit raised locally (not committed). Not a regression of the
@@ -331,7 +342,7 @@ FREEHOLD, with its own decision and gate.
 ## Waiting on the owner
 
 - Sign the online driver catalog, `CATALOG.TXT` at the top of this
-  repository (now release v6's, addresses into `releases/v6/`); machines read
+  repository (now release v7's, addresses into `releases/v7/`); machines read
   it with `DRIVERS /UPDATE` and at boot (FREEHOLD D-219) and refuse it
   unsigned. In a checkout of this repository, `cargo drivers sign` prints
   the exact lines (two `openssl` lines — sign, then verify against
@@ -363,3 +374,4 @@ FREEHOLD, with its own decision and gate.
 - 2026-11-13 run 6: the sound bridge (DRIVER_SOUND) and HDA.EXE built here, release v4; the built-in HD Audio removed, the kernel keeps the mixer (D-238); gates 1/4/5/9/13/16 pass.
 - 2026-11-13 run 7: interrupts delivered to user-mode drivers — DRIVER_IRQ (MSI/MSI-X on a vector of the driver's) and DRIVER_WAIT (D-242); VIRTNET 1.1.0-1 on MSI-X, release v5; gates 1/4/5/9/16 pass.
 - 2026-11-13 run 8: HDA.EXE 1.1.0 on its MSI (an interrupt per ~20 ms piece instead of a 2 ms poll), release v6, FREEHOLD pins v6 (D-247); gates 1/4/5/9/13/16 pass.
+- 2026-11-14 run 9: E1000.EXE 1.1.0 — the 82574L (QEMU e1000e) gated for the first time, on its MSI-X interrupt; release v7, FREEHOLD pins v7 (D-252); gates 1/4/5/16 pass.

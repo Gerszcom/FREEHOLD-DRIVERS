@@ -1,0 +1,99 @@
+FREEHOLD D-252 — the 82574L on its MSI-X: E1000.EXE 1.1.0-1 (release v7) takes QEMU e1000e's MSI-X interrupt (RXQ0/TXQ0/OTHER on entry 0 via IVAR) and sleeps in DRIVER_WAIT; the 8254x stays polled.
+FREEHOLD tree: 86f7ffd (= origin/main 2c924d6, with D-250/D-251 of other tasks, + tools/drivers.pin -> release v7 at b4802d7 + stage 16 e1000e machine). No kernel change.
+Image built by tools/build.sh with E1000-1.1.0-1.ZIP = releases/v7's (sha256 65546308...), fetched from the published release. Kernel 848896 bytes (unchanged). 2026-11-14T00:44Z
+
+Full stages on the tree rebased onto D-250 (2b50a25); after rebasing onto D-251 (graphics only), stage 1 and stage 16 e1000e + e1000u again.
+
+== g16b.log
+00:32:46 [primary] PASS stage 16
+00:33:46 [secondary] PASS stage 16
+00:34:08 [rtl] PASS stage 16
+00:34:33 [e1000u] PASS stage 16
+00:35:10 [e1000e] PASS stage 16
+00:35:46 [vnetm] PASS stage 16
+00:36:46 [drvdl] PASS stage 16
+00:37:42 [setup] PASS stage 16
+00:38:06 [cdrom] PASS stage 16
+00:38:18 [usbcd] PASS stage 16
+00:38:32 [disks] PASS stage 16
+00:38:37 [reinstall] PASS stage 16
+00:38:42 [installed] PASS stage 16
+00:38:51 [claim] PASS stage 16
+00:39:50 [install] PASS stage 16
+00:40:42 [dualboot] PASS stage 16
+00:40:53 [primary-keyb] PASS stage 16
+00:41:00 [primary-region] PASS stage 16
+00:41:01 gate 16: PASS
+
+== g1b.log
+00:41:08 [primary] PASS stage 1
+00:41:14 [secondary] PASS stage 1
+00:41:14 gate 1: PASS
+
+== g4.log
+00:26:47 [primary] PASS stage 4
+00:28:22 [secondary] PASS stage 4
+00:28:23 gate 4: PASS
+
+== g5.log
+00:28:39 [primary] PASS stage 5
+00:28:55 [secondary] PASS stage 5
+00:29:02 [nvme] PASS stage 5
+00:29:13 [primary-reboot] PASS stage 5
+00:29:28 [primary-up] PASS stage 5
+00:29:28 gate 5: PASS
+
+== stage 16 e1000e (rebased onto D-250)
+00:34:35 [e1000e] ok   'process module up': 'process: task 0 is the kernel'
+00:34:36 [e1000e] ok   'C: mounted': 'fs: C: ExFat "FREEHOLD"'
+00:34:36 [e1000e] ok   'COMMAND.COM started': 'shell: C:\\FREEHOLD\\COMMAND.COM started as pid 2'
+00:34:37 [e1000e] ok   'C:\\> prompt': 'C:\\>'
+00:34:37 [e1000e] ok   'the kernel starts the user-mode E1000 driver from the catalog for an 82574L (e1000e)': 'drivers: started E1000.EXE for 8086:10d3 at 00:02.0 as pid 1'
+00:34:37 [e1000e] ok   "the driver takes its device's MSI-X interrupt (DRIVER_IRQ)": "drivers: pid 1 takes its device's interrupts (MSI-X, vector 0x60)"
+00:34:37 [e1000e] ok   'the driver brings the card up as a network interface, with the MAC the card holds': 'drivers: pid 1 up as a network interface, MAC 52:54:00:12:34:56'
+00:34:37 [e1000e] ok   no built-in driver touched it
+00:34:40 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:34:40 [e1000e] ok   'C:\\DRIVERS\\E1000.INF: the driver is version 1.1.0-1': 'Version=1.1.0-1'
+00:34:40 [e1000e] ok   "the image's E1000 came from FREEHOLD-DRIVERS' pinned release, built from a named commit": 'Source=https://github.com/Gerszcom/FREEHOLD-DRIVERS ee9c9ce07bb098a5188b67eb74e3a4ab50df7848, built again
+00:34:42 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:34:42 [e1000e] ok   'DRIVERS lists the user-mode E1000 driver as running': 'E1000.EXE     8086:10d3 at 00:02.0  pid 1    running'
+00:34:42 [e1000e] ok   'with the status it posted: the link is up, interrupts (MSI-X)': 'status: link up, interrupts (MSI-X)'
+00:34:43 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:34:54 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:34:54 [e1000e] ok   idle 10 s on its MSI-X interrupt, E1000.EXE took no interrupt and woke 11 times (polled, it woke ~10000 times)
+00:34:56 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:34:56 [e1000e] ok   'DHCP gets an address through the user-mode E1000 driver': '10.0.2.15'
+00:34:59 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:34:59 [e1000e] ok   'the host answers ping through the user-mode driver': 'Reply from 10.0.2.2'
+00:35:00 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:35:00 [e1000e] ok   a megabyte comes over TCP through the user-mode driver
+00:35:00 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:35:00 [e1000e] ok   every byte of it
+00:35:02 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:35:02 [e1000e] ok   and again
+00:35:02 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:35:02 [e1000e] ok   the two copies match
+00:35:03 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:35:03 [e1000e] ok   ... through its MSI-X interrupt: 396 delivered, 546 wake-ups
+00:35:03 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:35:03 [e1000e] ok   the copies removed, so the next boot starts clean
+00:35:03 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:35:03 [e1000e] ok   (both)
+00:35:04 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:35:04 [e1000e] ok   "the killed driver's device is stopped": 'drivers: pid 1 ended, its device stopped'
+00:35:07 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:35:07 [e1000e] ok   "the prompt is unaffected by the driver's death": 'the prompt is still here'
+00:35:07 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:35:07 [e1000e] ok   DRIVERS /START starts it again
+00:35:07 [e1000e] ok   "the driver started again takes the MSI-X interrupt again (the old one's vector was freed)": "drivers: pid 14 takes its device's interrupts (MSI-X, vector 0x60)"
+00:35:08 [e1000e] ok   '^(?:\\x1b\\[[0-9;?]*[A-Za-z])*[A-Z]:\\\\[^>\\r\\n]*>': 'C:\\>'
+00:35:08 [e1000e] ok   the host answers ping again: the new driver took the old one's interface
+00:35:10 [e1000e] ok   'shutdown: bye': 'shutdown: bye'
+00:35:10 [e1000e] ok   "kernel enters S5 through the FADT's PM1 control": 'power: ACPI S5 (SLP_TYP 0/0)'
+00:35:10 [e1000e] ok   machine powered off through ACPI (QEMU exit code 0)
+
+== stage 16 e1000u (8254x, polled)
+00:34:16 [e1000u] ok   'C:\\DRIVERS\\E1000.INF: the driver is version 1.1.0-1': 'Version=1.1.0-1'
+00:34:17 [e1000u] ok   'with the status it posted: the link is up, polled': 'status: link up, polled'
+
+Stages 4 and 5 ran on the tree before the D-250 rebase (2b50a25 changes UPDATE's part list only; its own commit ran them).
