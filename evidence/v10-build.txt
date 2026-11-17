@@ -1,0 +1,29 @@
+cargo drivers release 10 — 2026-11-17T13:31:55Z, FREEHOLD-DRIVERS 8f4e765598b9822c9106cf301c0a94ee19fea14f, FREEHOLD 649f0df484a9ce5156869729b878fb9cd57ff1a0, rustc 1.97.0 (2d8144b78 2026-07-07)
+
+8871336bbe6bfd6895a9a9aeb2bf8f8ee7ef83b23297d44e0d64623d363d8623  E1000-1.2.0-1.ZIP
+c1555d629b66f17f2b8979be92681cabcfde61170dd9ea2410d22b46e38e5573  HDA-1.1.0-1.ZIP
+ad3eca98d72a7b49be998a9309f7099b09a0bd2d057350d0abfcfc38b31419d4  NVRTX-1.0.0-1.ZIP
+a4611e92e337c0d70b1576896730119249079572a0c5b7d3ccd749a199f4cde3  RTL8139-1.1.0-1.ZIP
+be22afbf580d43b864167f16dcfc718d3d31d2b952a50b24d6fd0c7286772f5d  USBECM-1.0.0-1.ZIP
+71cf16d73fd5e70d0e40b1affeb9181ee4367a169237deebbdfd08aa6385a484  VIRTBLK-1.0.0-1.ZIP
+86c372ec853fa2000a2d83f50d0d26ab951251a5033e9c0fb8a3cfedac78c151  VIRTNET-1.1.0-1.ZIP
+d8d3da1154f9696678ef580020200cbc2d1a8d83d692b1e005cb24a5f001219c  CATALOG.TXT
+
+The other six zips are v9's byte for byte; CATALOG.TXT is v9's byte for byte (same SHA-256): VIRTBLK is a boot driver (Boot=Yes), left out of the online catalog and carried inside FREEHOLD's kernel file (FREEHOLD tools/bootdrivers.pin, D-280).
+
+VIRTBLK.EXE in VIRTBLK-1.0.0-1.ZIP: 4a35055d87988fd2cf2e0728a36d73c4bfeb18de13d4fd61290179334c814500, 23552 bytes
+
+; VIRTBLK.EXE, a FREEHOLD user-mode driver from Gerszcom/FREEHOLD-DRIVERS
+[Driver]
+Name=VIRTBLK
+Version=1.0.0-1
+File=VIRTBLK.EXE
+Description=virtio block device (virtio 1.x)
+Licence=MIT
+Basic=Yes
+Boot=Yes
+Source=https://github.com/Gerszcom/FREEHOLD-DRIVERS 8f4e765598b9822c9106cf301c0a94ee19fea14f, built against https://github.com/Gerszcom/FREEHOLD 649f0df484a9ce5156869729b878fb9cd57ff1a0
+
+[Devices]
+1AF4:1001 storage
+1AF4:1042 storage
