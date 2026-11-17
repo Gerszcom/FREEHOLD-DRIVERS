@@ -1,4 +1,4 @@
-PAUSED 2026-11-14: waiting on the owner
+Run in progress: started 2026-11-17T12:00Z
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
