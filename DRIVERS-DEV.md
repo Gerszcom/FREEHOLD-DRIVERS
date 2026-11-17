@@ -1,4 +1,3 @@
-Run in progress: started 2026-11-17T12:30Z
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -64,7 +63,50 @@ the goal does not require moving them. Each move may need kernel work first
 class — DIRECTION.md Stage 16); build what is needed generally, in
 FREEHOLD, with its own decision and gate.
 
+Added by the owner's answers of 2026-11-17 (FREEHOLD D-277), now part of
+the goal: (D-253, option A) INTx for devices with neither MSI nor MSI-X,
+through the small `_PRT` evaluator and the shared level-triggered delivery
+— **done in run 13 (D-278)**; (D-254, option B) the storage boot drivers
+moved to user-mode drivers built here and carried inside the kernel file,
+started from memory before C: is mounted and restarted if they end, over a
+general block bridge (`DRIVER_BLOCK`), in steps each gated before its
+built-in is removed: virtio-blk, then NVMe, then AHCI with ATAPI, then USB
+mass storage over the USB bridge. PS/2, the serial port, the RTC, the
+console and the USB host controller with its hubs stay built in. (D-255,
+option A) Bochs and virtio-gpu stay built in; the display bridge only when
+NVRTX needs to show a picture — not part of this goal. The NVIDIA driver:
+this repository keeps its copy, refreshed from Gerszcom/FREEHOLD-RTX by
+commit. Only the catalog's signature may be left waiting on the owner.
+
 ## Where things stand
+
+- 2026-11-17 (run 13): **The owner's answers applied (FREEHOLD D-277) and
+  D-253's option A built: INTx for user-mode drivers (FREEHOLD D-278).**
+  The kernel reads the firmware's PCI interrupt routing at boot with a
+  small AML evaluator (`kernel/src/aml.rs`, forbid(unsafe), no hardware
+  access: `_PIC(1)`, every root bridge's and bridge's `_PRT`, link devices'
+  `_CRS`; q35: 128 entries, GSI 16–23 level/high, 14–25 ms under TCG);
+  `DRIVER_IRQ` with `IRQ_ACCEPT_INTX` gives a device with neither MSI nor
+  MSI-X its INTx line (`IRQ_INTX` = 3), level-triggered and shared: masked
+  when it fires, unmasked once every sharer has called `DRIVER_WAIT` again;
+  other devices on a new line get INTx disabled; unknown routing stays
+  polled and the boot log says why. Runtime
+  `driver::interrupts_or_intx()`, `Interrupt::Intx`. Release `v9` here
+  (built from `f92b181` against FREEHOLD `de591f4`; `evidence/v9-build.txt`):
+  `E1000.EXE` 1.2.0-1 (the 8254x on INTx) and `RTL8139.EXE` 1.1.0-1; the
+  other four zips v8's byte for byte; the root `CATALOG.TXT` is v9's
+  (unsigned). Measured: RTL8139 idle 10 s → no interrupt, 11 wake-ups
+  (polled ~10,000); 2 MiB → 467 interrupts / 596 wake-ups; 82544GC 313 /
+  434. Kernel 862720 → 912384 bytes (evaluator ~38 KB, over D-253's
+  estimate). Gates: stage 16 `rtl` and `e1000u` on INTx through
+  `user_nic_checks`, new `intxa`/`intxb` (RTL8139 + 82544GC sharing GSI 23
+  in slots 3 and 7, each card the stack's interface on one: shared by 2,
+  traffic, the other killed → shared by 1, still interrupted, idle quiet);
+  `drvdl` re-based on RTL8139 1.1.0-1. FREEHOLD `ba1e538` (kernel + ABI +
+  runtime, additive, pushed first), `de591f4` (D-278 number), then
+  `9e7dee9` (pin v9, gates, docs). Stages 1, 4, 5, 8, 9, 16 pass
+  (`evidence/D-278-freehold.txt`). The NVRTX copy checked: FREEHOLD-RTX
+  has not moved under `crates/freehold-rtx` since the pinned commit.
 
 - 2026-11-14 (run 12): **DRIVERS.EXE for USB devices online (FREEHOLD
   D-262) — Part 1's downloading now covers the USB devices kept for
@@ -401,67 +443,55 @@ FREEHOLD, with its own decision and gate.
 
 ## Next, in order
 
-1. Nothing unblocked is left (run 12 judged BLOCKED and paused the task).
-   When the owner answers below, remove the PAUSED line and build what he
-   chose: each its own gated increment (see 4).
-2. If the owner signs `CATALOG.TXT`: check `CATALOG.SIG` against his
+1. D-254 step 1 (option B, D-277): the block bridge and the first boot
+   driver. In FREEHOLD: `DRIVER_BLOCK` (register a disk: sector size,
+   count, read-only; take READ/WRITE/FLUSH requests with a lent buffer,
+   woken by `DRIVER_WAIT`'s `EVENT_WORK`; complete them), designed
+   generally with its own decision, the volume layer, the partition scan,
+   the optical layer and the overlay unchanged above it (shared with the
+   SETUP task: keep its interface); boot drivers carried inside the kernel
+   file (an archive appended to `BOOTX64.EFI` by `tools/build.sh`: name,
+   bytes, SHA-256, its catalog lines; pinned from a release here), started
+   from memory before `fs::mount_all`, restarted if they end (a few times,
+   requests held meanwhile, then the device given up and said so); measure
+   the boot time each adds (aim 2). Here: `VIRTBLK.EXE` (virtio-blk,
+   modern + transitional, on its MSI-X). Gate: every machine whose C: is
+   on virtio-blk (stage 1/4/5 secondary, the setup target...) boots and
+   passes through it, a kill restarts it with C: intact; only then remove
+   the built-in `virtio_blk.rs` (may be its own increment).
+2. D-254 step 2: NVMe (`NVME.EXE`), the built-in removed once stage 5's
+   nvme machine and the disks machine pass through it.
+3. D-254 step 3: AHCI with ATAPI (`AHCI.EXE`) — most machines' C:; the
+   optical layer stays above the bridge.
+4. D-254 step 4: USB mass storage over the USB bridge (D-259), the live
+   stick's path (stage 8, usbcd).
+5. The NVRTX copy (the owner's answer): `drivers/nvrtx` and
+   `crates/freehold-rtx` are refreshed from Gerszcom/FREEHOLD-RTX by
+   commit (read only) when it moves; check its latest commit against the
+   pinned one in `crates/freehold-rtx/Cargo.toml` each run that has room.
+   Checked run 13: FREEHOLD-RTX `main` is `60c97fa`, with no change under
+   `crates/freehold-rtx` since the pinned `a7dec57` — the copy is current.
+6. If the owner signs `CATALOG.TXT`: check `CATALOG.SIG` against his
    `RELEASE.KEY` (`openssl pkeyutl -verify -pubin -inkey RELEASE.KEY -rawin
    -in CATALOG.TXT -sigfile CATALOG.SIG`), put his key in FREEHOLD's
    `system/FREEHOLD/RELEASE.KEY` (D-212) if it is not there, and gate a
    real-catalog `DRIVERS /CHECK` (up to date) on stage 16.
-3. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
+7. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
    4 vCPUs under TCG) boots in 5-8 s, over stage 3's 5 s limit, on the
    unchanged secondary machine too; run 4 passed every other stage 3 check
-   with the limit raised locally (not committed). Not a regression of the
-   move; worth a word to the owner if it persists.
-4. When the owner answers D-253 / D-254 / D-255: build what he chose, each
-   its own gated increment (D-253's (A): the evaluator, `IRQ_INTX`, then
-   E1000.EXE 1.2.0 and RTL8139.EXE 1.1.0 on it; D-254's (B): DRIVER_BLOCK
-   and VIRTBLK.EXE first).
+   with the limit raised locally (not committed).
 
 ## Waiting on the owner
 
 - Sign the online driver catalog, `CATALOG.TXT` at the top of this
-  repository (now release v8's, addresses into `releases/v8/`); machines read
+  repository (now release v9's, addresses into `releases/v9/`); machines read
   it with `DRIVERS /UPDATE` and at boot (FREEHOLD D-219) and refuse it
   unsigned. In a checkout of this repository, `cargo drivers sign` prints
   the exact lines (two `openssl` lines — sign, then verify against
   RELEASE.KEY — and the commit); they paste as is into PowerShell or cmd.
-  (This replaces the earlier request to sign `releases/v1/CATALOG.TXT`:
-  the root one is what machines read.) Nothing else is blocked on it; for
-  real machines to check it, your `RELEASE.KEY` must also be in FREEHOLD's
-  `system/FREEHOLD/` (D-212).
+  Nothing else is blocked on it; for real machines to check it, your
+  `RELEASE.KEY` must also be in FREEHOLD's `system/FREEHOLD/` (D-212).
   Answer:
-- The NVIDIA RTX driver lives in two places: FREEHOLD's `programs/nvrtx`
-  (merged from the RTX work) — now moved here as `drivers/nvrtx` with its
-  `crates/freehold-rtx` mirror (D-215) — and Gerszcom/FREEHOLD-RTX, which
-  you develop yourself. Should this repository keep that copy, refreshed
-  from FREEHOLD-RTX by commit, with FREEHOLD-RTX your development repo that
-  publishes into this catalog, or should FREEHOLD-RTX's sources move here
-  too (when you say so)?
-  Answer: keep the copy here, refreshed from FREEHOLD-RTX by commit; FREEHOLD-RTX stays the owner's development repo and publishes into this catalog (the owner, 2026-11-17).
-- D-253 (FREEHOLD DECISIONS.md, PROPOSAL): interrupts for devices with
-  only INTx (RTL8139, the older Intel e1000s; old PCI cards), which today
-  are polled about a thousand times a second while their driver runs.
-  Options: (A) a small evaluator in the kernel for the firmware's PCI
-  interrupt table (ACPI `_PRT`) — recommended; (B) a full ACPI (AML)
-  interpreter; (C) chipset-specific rules; (D) keep polling. Which one?
-  Answer: (A) — the small `_PRT` evaluator in the kernel, with the INTx delivery D-253 describes; unknown routing stays polled (the owner, 2026-11-17).
-- D-254 (PROPOSAL): the drivers on the boot path — storage and USB mass
-  storage, which must work before `C:` is mounted. (A) keep them in the
-  kernel as now; (B) build them in this repository as user-mode drivers
-  and carry them inside the kernel file, started from memory before
-  `C:`, restarted if they end — recommended, one driver at a time from
-  virtio-blk; (C) the same but read from the boot partition. PS/2, the
-  serial port, the clock, the console and the USB controller stay in the
-  kernel either way. Which one?
-  Answer: (B) — boot drivers as user-mode drivers carried inside the kernel file, started from memory before C:, restarted if they end; in the recommended steps, virtio-blk first (the owner, 2026-11-17).
-- D-255 (PROPOSAL): the display drivers (Bochs, virtio-gpu), which belong
-  to the graphics task's stack. (A) keep them built in and build the
-  designed display bridge only when NVRTX needs to show a picture —
-  recommended; (B) move both now (a virtio-gpu-only machine's screen
-  then stays dark until `C:` is mounted); (C) move Bochs only. Which one?
-  Answer: (A) — keep Bochs and virtio-gpu built in; build the display bridge only when NVRTX needs to show a picture (the owner, 2026-11-17).
 
 ## Session log
 
@@ -480,3 +510,4 @@ FREEHOLD, with its own decision and gate.
 - 2026-11-14 run 10: PROPOSALs D-253 (INTx: the firmware's `_PRT`, read from q35's tables), D-254 (the boot path), D-255 (display) under "Waiting on the owner"; next: CDC-ECM over a USB bridge.
 - 2026-11-14 run 11: the USB bridge (DRIVER_USB) and USBECM.EXE (CDC ECM in user mode), release v8, the built-in ecm.rs removed (D-259); gates 1/4/5/8/16 pass.
 - 2026-11-14 run 12: DRIVERS.EXE matches the online catalog's USB: lines against every interface of a USB device (the report's `ifaces`), gated on stage 16 usbdl (D-262); gates 1/4/5/8/16 pass; every unblocked item done — paused, waiting on the owner.
+- 2026-11-17 run 13: the owner's answers applied (D-277: D-253 A, D-254 B, D-255 A, NVRTX copy kept); INTx for user-mode drivers — the `_PRT` evaluator, shared level-triggered lines, E1000 1.2.0 + RTL8139 1.1.0, release v9 (D-278); gates 1/4/5/8/9/16 pass; next: D-254 step 1 (DRIVER_BLOCK, VIRTBLK.EXE).

@@ -1,0 +1,110 @@
+FREEHOLD D-278 — INTx for user-mode drivers (the firmware's _PRT, shared level-triggered lines); gates on the image built from FREEHOLD-DRIVERS release v9 (pinned), 2026-11-17T12:58Z
+FREEHOLD de591f4 (ba1e538: kernel + ABI + runtime) + the pin, gate and docs changes; dist/BOOTX64.EFI 912384 bytes (was 862720)
+Host: the evaluator (kernel/src/aml.rs) run on the host against q35+OVMF's DSDT (8355 bytes, dumped from guest memory): _PIC(1) run, \_SB_.PCI0 128 entries (slot 2 A->22, 3 A->23, 4 A->20, 7 A->23, 31 A-D->16-19, level, active high) in ~0.25 ms; and against an iasl-built DSDT of the common real-firmware shape: AR00 chosen by PICM, _BBN a method, root ports' _PRT methods, a link _CRS method; a _PRT reading a GNVS field refused with 'reads PICX, not a named value here (a field?)'.
+
+== stage 1
+12:30:23 [primary] PASS stage 1
+12:30:28 [secondary] PASS stage 1
+12:30:28 gate 1: PASS
+
+== stage 4
+12:33:06 [primary] PASS stage 4
+12:34:42 [secondary] PASS stage 4
+12:34:43 gate 4: PASS
+
+== stage 5
+12:30:44 [primary] PASS stage 5
+12:30:59 [secondary] PASS stage 5
+12:31:06 [nvme] PASS stage 5
+12:31:17 [primary-reboot] PASS stage 5
+12:31:32 [primary-up] PASS stage 5
+12:31:32 gate 5: PASS
+
+== stage 8
+12:35:47 [primary] PASS stage 8
+12:36:51 [secondary] PASS stage 8
+12:37:42 [usb] PASS stage 8
+12:37:42 gate 8: PASS
+
+== stage 9
+12:38:40 [primary] PASS stage 9
+12:39:37 [secondary] PASS stage 9
+12:39:37 gate 9: PASS
+
+== stage 16
+12:40:37 [primary] PASS stage 16
+12:41:38 [secondary] PASS stage 16
+12:42:18 [rtl] PASS stage 16
+12:42:57 [e1000u] PASS stage 16
+12:43:37 [e1000e] PASS stage 16
+12:44:12 [intxa] PASS stage 16
+12:44:48 [intxb] PASS stage 16
+12:45:29 [vnetm] PASS stage 16
+12:46:42 [drvdl] PASS stage 16
+12:47:18 [usbdl] PASS stage 16
+12:48:43 [setup] PASS stage 16
+12:49:08 [cdrom] PASS stage 16
+12:49:22 [usbcd] PASS stage 16
+12:49:45 [disks] PASS stage 16
+12:49:51 [reinstall] PASS stage 16
+12:49:56 [installed] PASS stage 16
+12:50:07 [claim] PASS stage 16
+12:51:08 [install] PASS stage 16
+12:52:03 [dualboot] PASS stage 16
+12:52:50 [replace] PASS stage 16
+12:53:38 [mbr] PASS stage 16
+12:54:29 [mbrreplace] PASS stage 16
+12:55:15 [verify] PASS stage 16
+12:55:26 [primary-keyb] PASS stage 16
+12:55:35 [primary-region] PASS stage 16
+12:55:36 gate 16: PASS
+
+== stage 16, the INTx lines
+[rtl] ok   "the kernel runs the firmware's _PIC(1): APIC mode": 'acpi: _PIC(1): APIC mode'
+[rtl] ok   "and reads bus 0's routing from its _PRT: 128 entries (32 slots x 4 pins)": 'acpi: PCI interrupt routing for bus 0 (\\_SB_.PCI0): 128 entries'
+[rtl] ok   'how long reading it took (aim 2)': 'acpi: 1 definition blocks read for the PCI interrupt routing in 25201 us'
+[rtl] ok   ... 25201 us, under TCG
+[rtl] ok   "the driver takes its device's INTx interrupt (DRIVER_IRQ)": "drivers: pid 1 takes its device's interrupts (INTx, vector 0x60)"
+[rtl] ok   "... the line q35's _PRT gives slot 2 pin A (GSI 22), level-triggered, its own": "drivers: pid 1 takes its device's interrupts (INTx, vector 0x60): GSI 22 (level, active high, shared by 1)"
+[rtl] ok   'with the status it posted: the link is up, interrupts (INTx)': 'status: link up, 10/100 Mb/s, interrupts (INTx)'
+[rtl] ok   idle 10 s on its INTx interrupt, RTL8139.EXE took no interrupt and woke 11 times (polled, it woke ~10000 times)
+[rtl] ok   ... through its INTx interrupt: 460 delivered, 602 wake-ups
+[rtl] ok   "the driver started again takes the INTx interrupt again (the old one's vector was freed)": "drivers: pid 14 takes its device's interrupts (INTx, vector 0x60)"
+[rtl] ok   the host answers ping again: the new driver took the old one's interface
+[e1000u] ok   "the kernel runs the firmware's _PIC(1): APIC mode": 'acpi: _PIC(1): APIC mode'
+[e1000u] ok   "and reads bus 0's routing from its _PRT: 128 entries (32 slots x 4 pins)": 'acpi: PCI interrupt routing for bus 0 (\\_SB_.PCI0): 128 entries'
+[e1000u] ok   'how long reading it took (aim 2)': 'acpi: 1 definition blocks read for the PCI interrupt routing in 17773 us'
+[e1000u] ok   ... 17773 us, under TCG
+[e1000u] ok   "the driver takes its device's INTx interrupt (DRIVER_IRQ)": "drivers: pid 1 takes its device's interrupts (INTx, vector 0x60)"
+[e1000u] ok   "... the line q35's _PRT gives slot 2 pin A (GSI 22), level-triggered, its own": "drivers: pid 1 takes its device's interrupts (INTx, vector 0x60): GSI 22 (level, active high, shared by 1)"
+[e1000u] ok   'with the status it posted: the link is up, interrupts (INTx)': 'status: link up, interrupts (INTx)'
+[e1000u] ok   idle 10 s on its INTx interrupt, E1000.EXE took no interrupt and woke 11 times (polled, it woke ~10000 times)
+[e1000u] ok   ... through its INTx interrupt: 278 delivered, 430 wake-ups
+[e1000u] ok   "the driver started again takes the INTx interrupt again (the old one's vector was freed)": "drivers: pid 14 takes its device's interrupts (INTx, vector 0x60)"
+[e1000u] ok   the host answers ping again: the new driver took the old one's interface
+[intxa] ok   "the kernel runs the firmware's _PIC(1): APIC mode": 'acpi: _PIC(1): APIC mode'
+[intxa] ok   "and reads bus 0's routing from its _PRT: 128 entries (32 slots x 4 pins)": 'acpi: PCI interrupt routing for bus 0 (\\_SB_.PCI0): 128 entries'
+[intxa] ok   'how long reading it took (aim 2)': 'acpi: 1 definition blocks read for the PCI interrupt routing in 14373 us'
+[intxa] ok   ... 14373 us, under TCG
+[intxa] ok   "RTL8139.EXE (slot 3) takes GSI 23, level-triggered, where q35's _PRT puts slot 3 pin A": "drivers: pid 1 takes its device's interrupts (INTx, vector 0x60): GSI 23 (level, active high, shared by 1)"
+[intxa] ok   'E1000.EXE (slot 7, pin A: GSI 23 too) shares the line already given': "drivers: pid 2 takes its device's interrupts (INTx, vector 0x60): GSI 23 (level, active high, shared by 2), a line already given"
+[intxa] ok   ... one line, one vector (0x60)
+[intxa] ok   DRIVERS shows both on GSI 23, shared by 2, each on interrupts (INTx)
+[intxa] ok   'DHCP gets an address through RTL8139.EXE on the shared line': '10.0.2.15'
+[intxa] ok   ... through the shared line: 202 delivered, RTL8139.EXE woke 284 times, E1000.EXE (whose card was quiet) 207 times beside it
+[intxa] ok   the line is RTL8139.EXE's alone now (shared by 1)
+[intxa] ok   ... still on its interrupts: 3 more delivered
+[intxa] ok   idle 10 s on its INTx interrupt, RTL8139.EXE took no interrupt and woke 11 times (polled, it woke ~10000 times)
+[intxb] ok   "the kernel runs the firmware's _PIC(1): APIC mode": 'acpi: _PIC(1): APIC mode'
+[intxb] ok   "and reads bus 0's routing from its _PRT: 128 entries (32 slots x 4 pins)": 'acpi: PCI interrupt routing for bus 0 (\\_SB_.PCI0): 128 entries'
+[intxb] ok   'how long reading it took (aim 2)': 'acpi: 1 definition blocks read for the PCI interrupt routing in 17344 us'
+[intxb] ok   ... 17344 us, under TCG
+[intxb] ok   "E1000.EXE (slot 3) takes GSI 23, level-triggered, where q35's _PRT puts slot 3 pin A": "drivers: pid 1 takes its device's interrupts (INTx, vector 0x60): GSI 23 (level, active high, shared by 1)"
+[intxb] ok   'RTL8139.EXE (slot 7, pin A: GSI 23 too) shares the line already given': "drivers: pid 2 takes its device's interrupts (INTx, vector 0x60): GSI 23 (level, active high, shared by 2), a line already given"
+[intxb] ok   ... one line, one vector (0x60)
+[intxb] ok   DRIVERS shows both on GSI 23, shared by 2, each on interrupts (INTx)
+[intxb] ok   'DHCP gets an address through E1000.EXE on the shared line': '10.0.2.15'
+[intxb] ok   ... through the shared line: 138 delivered, E1000.EXE woke 216 times, RTL8139.EXE (whose card was quiet) 143 times beside it
+[intxb] ok   the line is E1000.EXE's alone now (shared by 1)
+[intxb] ok   ... still on its interrupts: 3 more delivered
+[intxb] ok   idle 10 s on its INTx interrupt, E1000.EXE took no interrupt and woke 11 times (polled, it woke ~10000 times)
