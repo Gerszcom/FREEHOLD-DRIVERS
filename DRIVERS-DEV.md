@@ -439,14 +439,14 @@ FREEHOLD, with its own decision and gate.
   from FREEHOLD-RTX by commit, with FREEHOLD-RTX your development repo that
   publishes into this catalog, or should FREEHOLD-RTX's sources move here
   too (when you say so)?
-  Answer:
+  Answer: keep the copy here, refreshed from FREEHOLD-RTX by commit; FREEHOLD-RTX stays the owner's development repo and publishes into this catalog (the owner, 2026-11-17).
 - D-253 (FREEHOLD DECISIONS.md, PROPOSAL): interrupts for devices with
   only INTx (RTL8139, the older Intel e1000s; old PCI cards), which today
   are polled about a thousand times a second while their driver runs.
   Options: (A) a small evaluator in the kernel for the firmware's PCI
   interrupt table (ACPI `_PRT`) — recommended; (B) a full ACPI (AML)
   interpreter; (C) chipset-specific rules; (D) keep polling. Which one?
-  Answer:
+  Answer: (A) — the small `_PRT` evaluator in the kernel, with the INTx delivery D-253 describes; unknown routing stays polled (the owner, 2026-11-17).
 - D-254 (PROPOSAL): the drivers on the boot path — storage and USB mass
   storage, which must work before `C:` is mounted. (A) keep them in the
   kernel as now; (B) build them in this repository as user-mode drivers
@@ -455,13 +455,13 @@ FREEHOLD, with its own decision and gate.
   virtio-blk; (C) the same but read from the boot partition. PS/2, the
   serial port, the clock, the console and the USB controller stay in the
   kernel either way. Which one?
-  Answer:
+  Answer: (B) — boot drivers as user-mode drivers carried inside the kernel file, started from memory before C:, restarted if they end; in the recommended steps, virtio-blk first (the owner, 2026-11-17).
 - D-255 (PROPOSAL): the display drivers (Bochs, virtio-gpu), which belong
   to the graphics task's stack. (A) keep them built in and build the
   designed display bridge only when NVRTX needs to show a picture —
   recommended; (B) move both now (a virtio-gpu-only machine's screen
   then stays dark until `C:` is mounted); (C) move Bochs only. Which one?
-  Answer:
+  Answer: (A) — keep Bochs and virtio-gpu built in; build the display bridge only when NVRTX needs to show a picture (the owner, 2026-11-17).
 
 ## Session log
 
