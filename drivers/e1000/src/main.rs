@@ -18,8 +18,12 @@
 //! entry 0 through IVAR; the driver sleeps until the card interrupts or the
 //! stack queues a frame, a second at most, and clears the causes it woke
 //! for (ICR, written back) before it looks at the rings. A card with
-//! neither (the 8254x QEMU offers) is polled every millisecond, as the
-//! built-in polled it (D-049), its interrupts masked.
+//! neither (the 8254x QEMU offers) takes its INTx line where the firmware's
+//! routing of it is known (FREEHOLD D-278): the classic causes, as on MSI,
+//! and the same clearing of ICR on every wake before the rings — which is
+//! what a level-triggered, shared line asks of it. Without that, it is
+//! polled every millisecond, as the built-in polled it (D-049), its
+//! interrupts masked.
 //!
 //! The 82574L's EEPROM read register (EERD) has its address at bit 2 and
 //! its done bit at bit 1, where the 8254x's are at bit 8 and bit 4; both
@@ -186,8 +190,8 @@ impl Nic {
     }
 
     /// Unmask the causes the driver wakes for, on the interrupt the kernel
-    /// gave it (D-242): on MSI-X each aimed at entry 0, on MSI the classic
-    /// causes. Whatever was pending is cleared.
+    /// gave it (D-242): on MSI-X each aimed at entry 0, on MSI and INTx
+    /// (D-278) the classic causes. Whatever was pending is cleared.
     fn enable_interrupts(&self, kind: driver::Interrupt) {
         let r = &self.regs;
         let causes = match kind {
@@ -196,7 +200,7 @@ impl Nic {
                 r.write32(IVAR, IVAR_ALL_TO_ENTRY_0);
                 ICR_RXQ0 | ICR_TXQ0 | ICR_OTHER | ICR_LSC
             }
-            driver::Interrupt::Msi => ICR_RXT0 | ICR_TXDW | ICR_LSC | ICR_RXDMT0 | ICR_RXO,
+            driver::Interrupt::Msi | driver::Interrupt::Intx => ICR_RXT0 | ICR_TXDW | ICR_LSC | ICR_RXDMT0 | ICR_RXO,
         };
         self.acknowledge();
         r.write32(IMS, causes);
@@ -356,14 +360,16 @@ fn main(_psp: &Psp) -> u8 {
         }
     };
     // The card's interrupt (D-242, D-250): MSI-X on the 82574L, MSI where
-    // a card has only that; neither on the 8254x QEMU offers: polled.
-    let irq = driver::interrupts();
+    // a card has only that; neither on the 8254x QEMU offers: its INTx line
+    // (D-278), else polled.
+    let irq = driver::interrupts_or_intx();
     if let Some(kind) = irq {
         nic.enable_interrupts(kind);
     }
     let how = match irq {
         Some(driver::Interrupt::MsiX) => "interrupts (MSI-X)",
         Some(driver::Interrupt::Msi) => "interrupts (MSI)",
+        Some(driver::Interrupt::Intx) => "interrupts (INTx)",
         None => "polled",
     };
     let say = |link: bool| {

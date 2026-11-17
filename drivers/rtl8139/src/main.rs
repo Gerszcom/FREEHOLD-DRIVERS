@@ -8,9 +8,14 @@
 //! `unsafe`: every register poke and every byte of DMA goes through the
 //! checked wrappers in `freehold_rt::driver`.
 //!
-//! The card is polled, as FREEHOLD's built-in drivers poll theirs: each
-//! turn of the loop drains received packets to the stack and sends one
-//! queued frame, then yields for a millisecond.
+//! Each turn of the loop clears the card's interrupt status, drains received
+//! packets to the stack and sends the frames it queued. The card has no MSI;
+//! where the firmware's routing of its INTx pin is known it takes that line
+//! (FREEHOLD D-278: level-triggered, perhaps shared) and sleeps in
+//! `DRIVER_WAIT` until the card interrupts, the stack queues a frame or a
+//! second passes; the status is cleared before the ring is read, so a
+//! packet that lands after it interrupts again. Otherwise it is polled: the
+//! same turn every millisecond.
 #![no_std]
 #![no_main]
 #![forbid(unsafe_code)]
@@ -41,6 +46,13 @@ const CR_BUFE: u8 = 0x01; // receive buffer empty (read-only)
 
 const TSD_OWN: u32 = 1 << 13; // set by the card when the descriptor is free
 const RX_OK: u16 = 0x0001; // packet status: received OK
+
+// Interrupt causes (IMR, ISR): receive OK and error, transmit error,
+// receive buffer overflow, link change, receive FIFO overflow. Transmit OK
+// is left out: a busy descriptor is waited for when it is next used.
+const INTERRUPTS: u16 = 0x0001 | 0x0002 | 0x0008 | 0x0010 | 0x0020 | 0x0040;
+/// Longest sleep with interrupts: the link and anything missed, once a second.
+const IDLE_MS: u64 = 1000;
 
 // The card has four transmit descriptors and advances through them in
 // order; each gets a 2 KiB slot in one DMA buffer.
@@ -100,8 +112,16 @@ fn main(_psp: &Psp) -> u8 {
     // unlimited DMA burst, no receive threshold.
     let rcr: u32 = (1 << 1) | (1 << 2) | (1 << 3) | (1 << 7) | (0b111 << 8) | (0b111 << 13);
     driver::out32(bar, RCR, rcr);
-    driver::out16(bar, IMR, 0x0000); // polled: no interrupts
+    driver::out16(bar, IMR, 0x0000); // no interrupts until there is a line
     driver::out8(bar, CR, CR_RE | CR_TE);
+    // Its INTx line (D-278), if the kernel can deliver it.
+    let irq = driver::interrupts_or_intx();
+    if irq.is_some() {
+        let isr = driver::in16(bar, ISR);
+        driver::out16(bar, ISR, isr);
+        driver::out16(bar, IMR, INTERRUPTS);
+    }
+    let how = if irq.is_some() { "interrupts (INTx)" } else { "polled" };
 
     let mut mac = [0u8; 6];
     for (i, b) in mac.iter_mut().enumerate() {
@@ -111,11 +131,13 @@ fn main(_psp: &Psp) -> u8 {
     // Post a one-line status the DRIVERS report shows (DRIVER_STATUS): a NIC
     // is already named there by DRIVER_NET, but the same call serves a driver
     // with no stack interface, so exercise it here with the card's mode.
-    driver::status("link up, 10/100 Mb/s, polled");
+    let mut line = alloc::string::String::from("link up, 10/100 Mb/s, ");
+    line.push_str(how);
+    driver::status(&line);
     println!(
-        "RTL8139: {:04x}:{:04x} at {:02x}:{:02x}.{} up, MAC {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+        "RTL8139: {:04x}:{:04x} at {:02x}:{:02x}.{} up, MAC {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}, {}",
         dev.vendor, dev.device, dev.bus, dev.slot, dev.function,
-        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]
+        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], how
     );
 
     let mut rx_offset: usize = 0;
@@ -123,9 +145,21 @@ fn main(_psp: &Psp) -> u8 {
     let mut tx_cur: usize = 0;
     let mut issued: u32 = 0;
     loop {
+        // Clear first: a packet that lands after this interrupts anew (on
+        // a level-triggered line the card must be quiet before the wait).
+        let isr = driver::in16(bar, ISR);
+        if isr != 0 {
+            driver::out16(bar, ISR, isr);
+        }
         drain_receive(bar, &rx, &mut rx_offset, &mut frame);
-        send_one(bar, &tx, &mut frame, &mut tx_cur, &mut issued);
-        thread::sleep_ms(1);
+        if irq.is_some() {
+            // Every frame the stack queued.
+            while send_one(bar, &tx, &mut frame, &mut tx_cur, &mut issued) {}
+            driver::wait(IDLE_MS);
+        } else {
+            send_one(bar, &tx, &mut frame, &mut tx_cur, &mut issued);
+            thread::sleep_ms(1);
+        }
     }
 }
 
@@ -153,20 +187,15 @@ fn drain_receive(bar: u8, rx: &Dma, offset: &mut usize, scratch: &mut [u8; MAX_F
             break; // never spin forever on a confused ring
         }
     }
-    // Acknowledge the receive interrupt bits the card may have raised.
-    let isr = driver::in16(bar, ISR);
-    if isr != 0 {
-        driver::out16(bar, ISR, isr);
-    }
 }
 
 /// Send one frame the stack has queued, if any. The card takes the four
 /// descriptors in turn, so each frame goes in the next one; a descriptor
 /// used before is waited on until the card frees it (OWN set).
-fn send_one(bar: u8, tx: &Dma, scratch: &mut [u8; MAX_FRAME], cur: &mut usize, issued: &mut u32) {
+fn send_one(bar: u8, tx: &Dma, scratch: &mut [u8; MAX_FRAME], cur: &mut usize, issued: &mut u32) -> bool {
     let len = driver::tx(scratch);
     if len == 0 {
-        return;
+        return false;
     }
     let slot = *cur;
     let tsd = TSD0 + (slot * 4) as u64;
@@ -182,4 +211,5 @@ fn send_one(bar: u8, tx: &Dma, scratch: &mut [u8; MAX_FRAME], cur: &mut usize, i
     driver::out32(bar, tsd, len as u32);
     *cur = (slot + 1) % TX_SLOTS;
     *issued += 1;
+    true
 }

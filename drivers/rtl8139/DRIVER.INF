@@ -3,7 +3,7 @@
 ; [Devices] entry. Raise Version= for every change that is published.
 [Driver]
 Name=RTL8139
-Version=1.0.0-1
+Version=1.1.0-1
 File=RTL8139.EXE
 Description=Realtek RTL8139 Ethernet
 Licence=MIT
