@@ -26,6 +26,7 @@ system calls that act on it alone, so a faulty driver ends only itself
 | `VIRTNET` (`drivers/virtnet`) | `1AF4:1000`, `1041` network | virtio network device over the modern (virtio 1.x) PCI transport: the kernel's built-in virtio-net driver moved to user mode (D-231); since 1.1.0 on its MSI-X interrupt, asleep in `DRIVER_WAIT` between frames (D-242) |
 | `HDA` (`drivers/hda`) | `8086:2668`, `8086:293E`; Intel, AMD/ATI, NVIDIA, VIA, SiS, ULi, Zhaoxin `sound` (any device, class 04h) | Intel High Definition Audio: the controller, its codec's output paths and one output stream, playing the ring the kernel's mixer lends it over the sound bridge (`DRIVER_SOUND`): the kernel's built-in HD Audio driver moved to user mode (D-238); since 1.1.0 on its MSI, an interrupt per ~20 ms piece played instead of a 2 ms poll (D-247) |
 | `USBECM` (`drivers/usbecm`) | `USB:*:*` `cdc-ecm` (any USB device with a CDC Ethernet interface, 02h/06h) | USB Ethernet adapters of the CDC Ethernet Control Model: the kernel's built-in ECM driver moved to user mode, reaching its adapter only through the USB bridge (`DRIVER_USB`): descriptors, a configuration, control transfers, OUT transfers and an IN stream the kernel keeps queued, its completions waking the driver (D-259) |
+| `VIRTBLK` (`drivers/virtblk`) | `1AF4:1001`, `1042` storage | virtio block device over the modern (virtio 1.x) PCI transport, on its MSI-X interrupt: the kernel's built-in virtio-blk driver moved to user mode as FREEHOLD's first **boot driver** (D-254, D-280), serving its disk over the block bridge (`DRIVER_BLOCK`) |
 | `NVRTX` (`drivers/nvrtx`) | `10DE:*` display | NVIDIA GeForce RTX 20–50: brings the card up to its GSP firmware (D-193..D-197); its logic is `crates/freehold-rtx`, mirrored from Gerszcom/FREEHOLD-RTX |
 
 Each driver's `DRIVER.INF` names it, its version, its file and the devices
@@ -70,6 +71,13 @@ The alias builds the tool for the machine it runs on (`--target host-tuple`,
 which a current Cargo understands; tested with Rust 1.97). Building on
 FREEHOLD itself waits for a Rust toolchain there; the tool uses only the
 standard library, so it will not be what stands in the way.
+
+A driver whose INF says `Boot=Yes` is a **boot driver** (FREEHOLD D-254,
+D-280): a driver for a disk `C:` may be on. FREEHOLD's build pins its zip
+(`tools/bootdrivers.pin`) and builds it into the kernel file, which starts
+it from memory before `C:` is mounted and again if it ends; it is updated
+with the kernel (FREEHOLD's UPDATE), so `cargo drivers` publishes its zip
+in a release but leaves it out of `CATALOG.TXT`.
 
 ## Releases
 

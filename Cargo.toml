@@ -23,6 +23,7 @@ members = [
     "drivers/virtnet",
     "drivers/hda",
     "drivers/usbecm",
+    "drivers/virtblk",
     "crates/freehold-rtx",
     "tools/drvtool",
 ]
@@ -35,6 +36,7 @@ default-members = [
     "drivers/virtnet",
     "drivers/hda",
     "drivers/usbecm",
+    "drivers/virtblk",
 ]
 
 [workspace.package]

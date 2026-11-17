@@ -1,0 +1,22 @@
+; VIRTBLK.EXE's description, for cargo drivers: it goes into the zip as
+; VIRTBLK.INF (with Source= added) and into the boot catalog the kernel
+; carries as one line per [Devices] entry. Raise Version= for every change
+; that is published.
+; The devices of the kernel's built-in virtio-blk driver, which this driver
+; replaces (D-280): the transitional device (1001) and the modern-only one
+; (1042), both driven through the modern (virtio 1.x) interface.
+; Boot=Yes: a boot driver (D-254), carried inside FREEHOLD's kernel file and
+; started before C: is mounted, so it is left out of the online catalog: it
+; is updated with the kernel.
+[Driver]
+Name=VIRTBLK
+Version=1.0.0-1
+File=VIRTBLK.EXE
+Description=virtio block device (virtio 1.x)
+Licence=MIT
+Basic=Yes
+Boot=Yes
+
+[Devices]
+1AF4:1001 storage
+1AF4:1042 storage

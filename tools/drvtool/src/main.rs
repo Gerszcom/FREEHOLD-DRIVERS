@@ -103,6 +103,10 @@ struct Driver {
     description: String,
     devices: Vec<(String, String)>,
     inf: String,
+    /// `Boot=Yes`: a boot driver (FREEHOLD D-254, D-280), carried inside
+    /// FREEHOLD's kernel file and updated with it, so left out of the
+    /// online catalog (its zip is published and pinned as any other).
+    boot: bool,
 }
 
 /// Build every driver for the UEFI target and package it into `dist/`.
@@ -211,7 +215,8 @@ fn parse_inf(crate_name: &str, path: &Path) -> Result<Driver> {
     if devices.is_empty() {
         return Err(bad("no [Devices]".into()));
     }
-    Ok(Driver { crate_name: crate_name.into(), name, version, file, description, devices, inf })
+    let boot = keys.iter().any(|(k, v)| k == "boot" && v.eq_ignore_ascii_case("yes"));
+    Ok(Driver { crate_name: crate_name.into(), name, version, file, description, devices, inf, boot })
 }
 
 fn dos_char(b: u8) -> bool {
@@ -280,6 +285,10 @@ fn package(root: &Path, freehold: &Path, drivers: &[Driver], dist: &Path, publis
         let digest = hex(&sha256(&zip));
         write(&dist.join(&zname), &zip)?;
         let _ = writeln!(sums, "{digest}  {zname}");
+        if d.boot {
+            println!("drivers: {zname} ({} bytes): a boot driver, carried in FREEHOLD's kernel file, not in CATALOG.TXT", zip.len());
+            continue;
+        }
         for (id, class) in &d.devices {
             lines.push(format!(
                 "{id} {class} {} {} {} {digest} {zname} {}",
