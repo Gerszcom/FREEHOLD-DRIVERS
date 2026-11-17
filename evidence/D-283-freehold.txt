@@ -1,0 +1,107 @@
+FREEHOLD D-283 — the built-in virtio-blk driver removed; VIRTBLK.EXE (boot driver, FREEHOLD-DRIVERS v10) drives every virtio disk.
+FREEHOLD commit 8658e85 (on ac6bcea + 3b51e05). Run 15 of the drivers task, 2026-11-17.
+
+Kernel: dist/BOOTX64.EFI 976,896 -> 971,776 bytes (with the boot drivers' archive); 942,080 without it.
+
+Gates (tools/gate.py, QEMU TCG, this sandbox: 2 host CPUs, 4 vCPUs):
+stage 1: 15:33:24 gate 1: PASS (20 s)
+stage 5: 15:34:48 gate 5: PASS (84 s)
+stage 4: 15:38:14 gate 4: PASS (206 s)
+stage 9: 15:40:33 gate 9: PASS (139 s)
+stage 16: 16:10:09 gate 16: FAIL (1776 s)
+stage 16, machine e1000u alone, run again twice: PASS (reading the PCI routing 45467 us, 47735 us; the full run's 52784 us tripped the 50 ms limit — D-278's check, unrelated to this change)
+
+Stage 16, every machine (full run):
+15:41:45 [primary] PASS stage 16
+15:45:46 [secondary] PASS stage 16
+15:46:27 [rtl] PASS stage 16
+15:46:33 [e1000u] FAIL stage 16: [e1000u] reading the routing took 52784 us
+15:47:16 [e1000e] PASS stage 16
+15:47:55 [intxa] PASS stage 16
+15:48:38 [intxb] PASS stage 16
+15:49:19 [vnetm] PASS stage 16
+15:49:44 [secondary-vblk] PASS stage 16
+15:50:57 [drvdl] PASS stage 16
+15:51:34 [usbdl] PASS stage 16
+15:54:31 [setup] PASS stage 16
+15:54:56 [cdrom] PASS stage 16
+15:55:12 [usbcd] PASS stage 16
+15:55:35 [disks] PASS stage 16
+15:55:42 [reinstall] PASS stage 16
+15:55:47 [installed] PASS stage 16
+15:56:01 [claim] PASS stage 16
+15:58:14 [install] PASS stage 16
+16:00:28 [dualboot] PASS stage 16
+16:01:06 [bootentry] PASS stage 16
+16:03:21 [replace] PASS stage 16
+16:05:28 [mbr] PASS stage 16
+16:07:46 [mbrreplace] PASS stage 16
+16:09:45 [verify] PASS stage 16
+16:09:57 [primary-keyb] PASS stage 16
+16:10:06 [primary-region] PASS stage 16
+
+secondary-vblk (D-280's machine) on the kernel without the built-in:
+15:49:22 [secondary] ok   'boot self-test starts': 'selftest: executing ud2 at a known site'
+15:49:22 [secondary] ok   'fault frame printed': '#UD invalid opcode (vector 6) rip=0xffff80000db042e0 rsp=0xffffa000000105b0 err=0x0'
+15:49:22 [secondary] ok   'returned from the deliberate kernel fault': 'fault test ok'
+15:49:22 [secondary] ok   'process module up': 'process: task 0 is the kernel'
+15:49:22 [secondary] ok   'PS/2 keyboard initialized': 'ps2: keyboard ok'
+15:49:22 [secondary] ok   'RTC read': 'rtc: 2026-11-17 15:49:22'
+15:49:22 [secondary] ok   'about 20 ticks in 20 ms of hlt idle (1000 Hz)': 'timer: 22 ticks in 20 ms, idle=hlt'
+15:49:23 [secondary] ok   'C: mounted (exFAT system partition)': 'fs: C: ExFat "FREEHOLD"'
+15:49:23 [secondary] ok   'D: mounted (FAT32)': 'fs: D: Fat32 "DATA"'
+15:49:23 [secondary] ok   'CONFIG.SYS read': 'config: FILES=40'
+15:49:24 [secondary] ok   "COMMAND.COM loaded from disk as the first user task after the boot's drivers": 'shell: C:\\FREEHOLD\\COMMAND.COM started as pid 4'
+15:49:26 [secondary] ok   'C:\\> prompt': 'C:\\>'
+15:49:26 [secondary] ok   no built-in virtio-blk: VIRTBLK.EXE (pid 1) started from the kernel file, its disk 0 registered over the block bridge on MSI-X, up 148 ms after its start and before C: was mounted (aim 2)
+15:49:27 [secondary] ok   DRIVERS lists VIRTBLK.EXE running for the virtio disk
+15:49:27 [secondary] ok   ... DRIVERS shows the kernel file's boot drivers (SHA-256), VIRTBLK.EXE's status and disk 0
+15:49:28 [secondary] ok   TASKS shows VIRTBLK.EXE as a driver
+15:49:28 [secondary] ok   a file written on C: and read back (1)
+15:49:29 [secondary] ok   a program copied on C: (1)
+15:49:30 [secondary] ok   FC.EXE, loaded from C:, finds the copy identical (1)
+15:49:30 [secondary] ok   'KILL: VIRTBLK.EXE started again from the kernel file': 'drivers: VIRTBLK.EXE for 00:03.0 ended; started again from the kernel file as pid 13 (1 of 3)'
+15:49:30 [secondary] ok   'the new VIRTBLK.EXE takes disk 0 back': "block: pid 13 serves 00:03.0's disk 0 again"
+15:49:30 [secondary] ok   a file written on C: and read back (2)
+15:49:32 [secondary] ok   a program copied on C: (2)
+15:49:33 [secondary] ok   FC.EXE, loaded from C:, finds the copy identical (2)
+15:49:33 [secondary] ok   the file written before the KILL reads back after it
+15:49:34 [secondary] ok   DRIVERS: VIRTBLK.EXE started twice
+15:49:34 [secondary] ok   KILL → VIRTBLK.EXE started again from the kernel file; C: intact, written and read through it
+15:49:36 [secondary] ok   'kill 1: started again (1 of 3)': 'started again from the kernel file as pid 15 (1 of 3)'
+15:49:36 [secondary] ok   "block: pid 15 serves [0-9a-f:.]+'s disk 0 again": "block: pid 15 serves 00:03.0's disk 0 again"
+15:49:38 [secondary] ok   'kill 2: started again (2 of 3)': 'started again from the kernel file as pid 16 (2 of 3)'
+15:49:38 [secondary] ok   "block: pid 16 serves [0-9a-f:.]+'s disk 0 again": "block: pid 16 serves 00:03.0's disk 0 again"
+15:49:41 [secondary] ok   'kill 3: started again (3 of 3)': 'started again from the kernel file as pid 17 (3 of 3)'
+15:49:41 [secondary] ok   "block: pid 17 serves [0-9a-f:.]+'s disk 0 again": "block: pid 17 serves 00:03.0's disk 0 again"
+15:49:43 [secondary] ok   'ended four times in a row with nothing served: its disk is given up': 'drivers: VIRTBLK.EXE for 00:03.0 ended 4 times in a row; its disks are given up'
+15:49:43 [secondary] ok   '^SETTLED': 'SETTLED'
+15:49:43 [secondary] ok   the shell still answers with C:'s disk given up (aim 10)
+15:49:44 [secondary] ok   C: reports its disk's failure instead of hanging
+15:49:44 [secondary] ok   four ends in a row → the disk is given up; the shell goes on and C: reports the failure
+
+Stage 1 secondary's boot log (validation/stage-1/secondary-serial.log):
+drivers: started VIRTBLK.EXE for 1af4:1001 at 00:03.0 as pid 1
+drivers: VIRTBLK.EXE 1.0.0-1 is a boot driver (in the kernel file, 23552 bytes)
+block: disk 0: VIRTBLK.EXE 00:03.0: 282624 sectors of 512 bytes (138 MiB)
+drivers: VIRTBLK.EXE up for 00:03.0 in 164 ms
+block: 1 disk(s) in 278 ms
+boot: prompt after 4343 ms (firmware handoff to C:\>, aim 2)
+         172 KiB  VIRTBLK.EXE (pid 1)
+
+A kernel built without the archive (cargo build -p freehold-kernel, FREEHOLD_BOOT_DRIVERS unset), booted on a virtio-blk-only machine:
+block: the virtio disk at 00:03.0 has no driver (its boot driver, VIRTBLK.EXE, is not in this kernel file or found no disk; tools/build.sh builds it in)
+block: 0 disk(s) in 137 ms
+fs: the firmware's HD(1,GPT,79C8F3C8-73EC-4649-B525-D11EEAE9A50B,0x800,0x12000) is on no disk found; the boot disk is found by its partitions
+Bad or missing Command Interpreter: C:\FREEHOLD\COMMAND.COM: error 15
+
+Aim 2, measured after landing (stage 1's secondary machine, three boots each, this sandbox, TCG):
+  built-in virtio-blk (a kernel built without the archive, before D-283, run 15's own check): boot: prompt after 3283, 2968, 3115 ms
+  VIRTBLK.EXE through the block bridge (FREEHOLD 8658e85):                                     boot: prompt after 4741, 5761, 4845 ms
+                                                                    (VIRTBLK.EXE up in 175-197 ms; block: 1 disk(s) in 307-345 ms)
+  So the bridge costs ~1.5-2.5 s of TCG time to the prompt on this machine, not only the ~100 ms until
+  the disk registers (D-280): on the order of 10,000 requests reach the disk before the prompt (9,856
+  pieces counted in run 15's own trial of the same design, before it found run 14's landed), each a round trip
+  through a user process (EVENT_WORK, TAKE, the device, its MSI-X, DONE, the waiter's wake-up) —
+  ~150-250 us more per request under TCG. Next item 1 in DRIVERS-DEV.md: make that round trip cheaper
+  before NVMe and AHCI move (AHCI is most machines' C:).

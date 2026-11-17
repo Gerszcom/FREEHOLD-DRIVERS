@@ -1,5 +1,3 @@
-Run in progress: started 2026-11-17T15:52Z
-
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -81,6 +79,32 @@ this repository keeps its copy, refreshed from Gerszcom/FREEHOLD-RTX by
 commit. Only the catalog's signature may be left waiting on the owner.
 
 ## Where things stand
+
+- 2026-11-17 (run 15): **D-254 step 1b: the built-in virtio-blk driver
+  removed (FREEHOLD D-283, `8658e85`).** Run 15 took the lock at 15:00Z
+  (run 14's was 2 h old) and began step 1 too; run 14 landed it at 15:26,
+  so run 15 dropped its copy (nothing of it was pushed) and took step 1b.
+  `drivers/block/virtio_blk.rs` (210 lines) is gone; `block::init` starts
+  the boot driver for a virtio disk or says `block: the virtio disk at
+  00:03.0 has no driver (its boot driver, VIRTBLK.EXE, is not in this
+  kernel file or found no disk; ...)`. `drivers/virtio.rs` stays — the
+  handoff was wrong there: virtio-gpu (the display, D-255) uses it; only
+  its virtio-blk-only `queue_count` went. Decided: the archive stays
+  optional at compile time (`cargo build`/check/clippy on the kernel alone
+  work offline; such a kernel boots AHCI/NVMe machines and says why a
+  virtio disk is unreachable — checked on a virtio-only machine);
+  `tools/build.sh` always builds it in. Kernel 976,896 → 971,776 bytes
+  (942,080 without the archive). No change here but this file and
+  `evidence/D-283-freehold.txt`. Gates: stages 1, 4, 5, 9 and 16 (all 27
+  machines) pass; stage 16's `e1000u` tripped D-278's 50 ms limit on
+  reading the PCI routing once (52.8 ms; 45–48 ms on two reruns) — this
+  sandbox is near that limit, unrelated to the change. **Found (aim 2):**
+  on stage 1's secondary machine, boot to prompt is 4.7–5.8 s through
+  VIRTBLK.EXE against 3.0–3.3 s on the built-in (three boots each, same
+  sandbox, TCG): the bridge costs ~1.5–2.5 s of TCG time, not only D-280's
+  ~100 ms until the disk registers — ~10,000 requests before the prompt,
+  each a round trip through the driver process. That is now Next 1,
+  before NVMe and AHCI (most machines' `C:`) move.
 
 - 2026-11-17 (run 14): **D-254 step 1 built: the block bridge
   (`DRIVER_BLOCK`) and the first boot driver, `VIRTBLK.EXE`, carried
@@ -484,19 +508,28 @@ commit. Only the catalog's signature may be left waiting on the owner.
 
 ## Next, in order
 
-1. D-254 step 1b: remove the built-in `virtio_blk.rs` and `virtio.rs`
-   (its only user; virtio-gpu has its own transport)
-   now that every virtio-blk machine passes through VIRTBLK.EXE; the
-   kernel without the archive then has no virtio-blk driver, so make
-   `tools/build.sh`'s archive mandatory (fail the build without it) or
-   keep the fallback — decide by what `cargo build -p freehold-kernel`
-   alone should give. Re-gate stages 1, 4, 5, 16 (every `secondary` and
-   every machine with a virtio target disk).
+1. Make the block bridge's round trip cheaper (aim 2), before step 2.
+   Measured run 15: boot to prompt 4.7–5.8 s through VIRTBLK.EXE vs
+   3.0–3.3 s on the old built-in (stage 1 secondary, TCG) — ~150–250 us
+   more for each of ~10,000 requests. Ideas, each to be measured the same
+   way (three boots, `boot: prompt after`, and a count of requests and
+   their average wait in `DRIVERS`): wake only the waiter's CPU on DONE
+   instead of `wake_others` (and only the driver's on a new request);
+   let the requester hand the CPU straight to the driver (yield to it)
+   rather than halt; have VIRTBLK.EXE poll its used ring briefly before it
+   sleeps in `DRIVER_WAIT` (a driver change: v11); several requests in
+   flight per disk (the volume layer's read-ahead/write-behind as one
+   piece). A fix in the kernel alone lands without a release here.
+   Tried in run 15's own (dropped) bridge: the waiter only yielding for
+   its first 2 ms instead of halting made it worse (4.3–4.9 s vs 3.7–4.2 s
+   — spinning vCPUs starve the driver's and QEMU's threads on this 2-CPU
+   host), so not that.
 2. D-254 step 2: NVMe (`NVME.EXE`) over the block bridge as a boot
    driver (several namespaces = units; MSI-X), the built-in removed once
    stage 5's nvme machine and the disks machine pass through it. The
    bridge takes one piece at a time per driver: fine for one queue pair;
-   revisit if NVMe wants more in flight.
+   revisit if NVMe wants more in flight. `drivers/virtio.rs` is
+   virtio-gpu's now (the display's, D-255): leave it.
 3. D-254 step 3: AHCI with ATAPI (`AHCI.EXE`) — most machines' C:; the
    optical layer stays above the bridge.
 4. D-254 step 4: USB mass storage over the USB bridge (D-259), the live
@@ -515,7 +548,9 @@ commit. Only the catalog's signature may be left waiting on the owner.
 7. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
    4 vCPUs under TCG) boots in 5-8 s, over stage 3's 5 s limit, on the
    unchanged secondary machine too; run 4 passed every other stage 3 check
-   with the limit raised locally (not committed).
+   with the limit raised locally (not committed). Likewise stage 16's
+   `e1000u` checks reading the PCI routing takes under 50 ms; here it took
+   45–53 ms (run 15): a failure there alone is the sandbox — run it again.
 
 ## Waiting on the owner
 
@@ -549,3 +584,4 @@ commit. Only the catalog's signature may be left waiting on the owner.
 - 2026-11-14 run 12: DRIVERS.EXE matches the online catalog's USB: lines against every interface of a USB device (the report's `ifaces`), gated on stage 16 usbdl (D-262); gates 1/4/5/8/16 pass; every unblocked item done — paused, waiting on the owner.
 - 2026-11-17 run 13: the owner's answers applied (D-277: D-253 A, D-254 B, D-255 A, NVRTX copy kept); INTx for user-mode drivers — the `_PRT` evaluator, shared level-triggered lines, E1000 1.2.0 + RTL8139 1.1.0, release v9 (D-278); gates 1/4/5/8/9/16 pass; next: D-254 step 1 (DRIVER_BLOCK, VIRTBLK.EXE).
 - 2026-11-17 run 14: D-254 step 1 — the block bridge (DRIVER_BLOCK) and VIRTBLK.EXE, the first boot driver, carried inside the kernel file, restarted if it ends, release v10 (D-280); gates 1/4/5/16 pass; next: remove the built-in virtio-blk.
+- 2026-11-17 run 15: took the lock while run 14 was landing step 1 and dropped its own copy of it; D-254 step 1b — the built-in virtio-blk removed, the archive optional at compile time (D-283); gates 1/4/5/9/16 pass; found the bridge costs ~1.5–2.5 s of TCG boot on the secondary machine — next: make its round trip cheaper, then NVMe.
