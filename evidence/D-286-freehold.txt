@@ -1,0 +1,95 @@
+FREEHOLD D-286 — the block bridge's round trip halved: a driver woken wakes one CPU, not all; halt_for_wake; per-disk request counters.
+Run 16 of the drivers task, 2026-11-17 (FREEHOLD ec85e88). No change in this repository but DRIVERS-DEV.md and this file (VIRTBLK.EXE 1.0.0-1, release v10, unchanged).
+
+Sandbox: 2 host CPUs; the gate's machines are 4 vCPUs under QEMU TCG (QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)).
+
+== Boot to prompt, stage 1's secondary machine (C: on virtio-blk), three boots each ==
+-- main before the change (8658e85), with the counters added (instr) and without (base):
+base #1: prompt after 3974 ms
+base #2: prompt after 3746 ms
+base #3: prompt after 3852 ms
+instr #1: prompt after 4314 ms
+block: 00:03.0 unit 0: 1138 requests, 579 KiB, 938 us each (186 to the driver, 527 in it, 224 back) before the prompt
+instr #2: prompt after 3953 ms
+block: 00:03.0 unit 0: 1138 requests, 579 KiB, 890 us each (273 to the driver, 418 in it, 198 back) before the prompt
+-- step 1: one CPU woken by driver_signal, DONE wakes the requester's CPU (e1):
+e1 #1: prompt after 3784 ms
+block: 00:03.0 unit 0: 1138 requests, 579 KiB, 608 us each (117 to the driver, 446 in it, 44 back) before the prompt
+e1 #2: prompt after 3624 ms
+block: 00:03.0 unit 0: 1138 requests, 579 KiB, 509 us each (141 to the driver, 328 in it, 39 back) before the prompt
+e1 #3: prompt after 3484 ms
+block: 00:03.0 unit 0: 1138 requests, 579 KiB, 455 us each (103 to the driver, 299 in it, 51 back) before the prompt
+-- step 2: + a CPU halted in a kernel wait counts as idle (e2):
+e2 #1: prompt after 3361 ms
+block: 00:03.0 unit 0: 1138 requests, 579 KiB, 489 us each (44 to the driver, 406 in it, 38 back) before the prompt
+e2 #2: prompt after 3443 ms
+block: 00:03.0 unit 0: 1138 requests, 579 KiB, 438 us each (80 to the driver, 309 in it, 48 back) before the prompt
+e2 #3: prompt after 3482 ms
+block: 00:03.0 unit 0: 1138 requests, 579 KiB, 492 us each (88 to the driver, 357 in it, 46 back) before the prompt
+-- final (process::idle through halt_for_wake, task 0 not idle merely for being current) (e3):
+e3 #1: prompt after 3481 ms
+block: 00:03.0 unit 0: 1138 requests, 579 KiB, 413 us each (66 to the driver, 302 in it, 45 back) before the prompt
+e3 #2: prompt after 3334 ms
+block: 00:03.0 unit 0: 1138 requests, 579 KiB, 462 us each (47 to the driver, 363 in it, 50 back) before the prompt
+e3 #3: prompt after 3733 ms
+block: 00:03.0 unit 0: 1138 requests, 579 KiB, 528 us each (85 to the driver, 400 in it, 42 back) before the prompt
+-- the old built-in virtio-blk (kernel ac6bcea built without the boot drivers' archive, same image):
+builtin #1: prompt after 3367 ms
+builtin #2: prompt after 3142 ms
+builtin #3: prompt after 3603 ms
+
+== Stage 3 secondary's XCOPY C:\FREEHOLD D:\APPS /S (limit 20 s), its timeout raised locally to time it ==
+this change: 18:02:21 18:02:55  (34 s); DRIVERS after it:
+    unit 0: 115407 requests, 57667 KiB, 218 us each (43 to the driver, 139 in it, 35 back)
+old built-in: 18:05:46 18:06:07  (21 s)
+main before the change: 12 of 44 files copied when the 20 s ran out.
+
+== Gates on the final tree (rebased onto the graphics task's D-284 and D-285) ==
+FREEHOLD commit ec85e88 (on 5a64f94: the graphics task's D-285).
+Kernel: dist/BOOTX64.EFI 979,968 bytes (main before it, with D-284/D-285: the same tree less this change; 971,776 at 8658e85 -> 976,384 with this change alone).
+
+stage 1: 18:48:08 gate 1: PASS
+stage 5: 18:49:26 gate 5: PASS
+stage 8: 18:52:43 gate 8: PASS
+stage 4: 18:57:07 gate 4: PASS
+stage 16: 19:18:10 gate 16: PASS (all 27 machines):
+  18:58:14 [primary] PASS stage 16
+  19:00:12 [secondary] PASS stage 16
+  19:00:52 [rtl] PASS stage 16
+  19:01:34 [e1000u] PASS stage 16
+  19:02:14 [e1000e] PASS stage 16
+  19:02:50 [intxa] PASS stage 16
+  19:03:27 [intxb] PASS stage 16
+  19:04:09 [vnetm] PASS stage 16
+  19:04:34 [secondary-vblk] PASS stage 16
+  19:05:47 [drvdl] PASS stage 16
+  19:06:28 [usbdl] PASS stage 16
+  19:08:26 [setup] PASS stage 16
+  19:08:52 [cdrom] PASS stage 16
+  19:09:08 [usbcd] PASS stage 16
+  19:09:32 [disks] PASS stage 16
+  19:09:39 [reinstall] PASS stage 16
+  19:09:44 [installed] PASS stage 16
+  19:09:57 [claim] PASS stage 16
+  19:11:21 [install] PASS stage 16
+  19:12:41 [dualboot] PASS stage 16
+  19:13:17 [bootentry] PASS stage 16
+  19:14:27 [replace] PASS stage 16
+  19:15:35 [mbr] PASS stage 16
+  19:16:45 [mbrreplace] PASS stage 16
+  19:17:46 [verify] PASS stage 16
+  19:17:59 [primary-keyb] PASS stage 16
+  19:18:08 [primary-region] PASS stage 16
+stage 9: PASS on the tree rebased onto D-284 only (18:20:46, 124 s); D-285 (input routing) does not touch sound.
+stage 3 (on the tree rebased onto D-284, this change then numbered D-285): primary PASS; secondary passes its boot checks, this change's included —
+  18:12:17 [secondary] ok   "the bridged disk's requests before the prompt and where their time went (D-285)": 'block: 00:03.0 unit 0: 1157 requests, 588 KiB, 468 us each (97 to the driver, 329 in it, 42 back) before the prompt'
+  18:12:17 [secondary] ok   block bridge: 1157 requests, 468 us each under TCG (limit 2000, D-285)
+  — and fails at XCOPY's 20 s limit, as on main since D-280 (see above; Next 1 in DRIVERS-DEV.md).
+
+Stage 16 secondary-vblk checks DRIVERS' new line (unit 0: N requests, ...); its serial:
+  block: 00:03.0 unit 0: 1166 requests, 593 KiB, 539 us each (71 to the driver, 390 in it, 77 back) before the prompt
+      unit 0: 1166 requests, 593 KiB, 539 us each (71 to the driver, 390 in it, 77 back)
+      unit 0: 7416 requests, 3690 KiB, 281 us each (44 to the driver, 188 in it, 47 back)
+Stage 1 secondary's boot log on the final tree:
+  boot: prompt after 3939 ms (firmware handoff to C:\>, aim 2)
+  block: 00:03.0 unit 0: 1166 requests, 593 KiB, 559 us each (78 to the driver, 433 in it, 47 back) before the prompt

@@ -1,5 +1,3 @@
-Run in progress: started 2026-11-17T18:07Z
-
 # DRIVERS-DEV — cross-run handoff for FREEHOLD's drivers
 
 This file is the drivers task's memory between hourly runs. Only drivers
@@ -81,6 +79,38 @@ this repository keeps its copy, refreshed from Gerszcom/FREEHOLD-RTX by
 commit. Only the catalog's signature may be left waiting on the owner.
 
 ## Where things stand
+
+- 2026-11-17 (run 16): **The block bridge's round trip halved (FREEHOLD
+  D-286) — Next 1, kernel side.** Counted first: each bridged disk now
+  keeps its requests and where their time goes (`to the driver`, `in it`,
+  `back`), in `DRIVERS` (`unit 0: N requests, K KiB, U us each (...)`)
+  and once in the boot log at the first prompt (`block: 00:03.0 unit 0:
+  ... before the prompt`). The boot makes **1,138 requests** (579 KiB,
+  about a sector each — not ~10,000 as run 15 guessed) at ~900 us each
+  under TCG (186–273 / 418–527 / 198–224): ~1 s of the boot. Cause: every
+  step (the request's `driver_signal`, the MSI-X, DONE) called
+  `wake_others` — nine wake IPIs a request, three halted vCPUs woken each
+  time on this 2-CPU host. Fixed for every driver and kernel wait:
+  `driver_signal` wakes the first idle CPU (this one first, then no IPI),
+  all only if none is idle; `smp::wake(cpu)`; `process::halt_for_wake`
+  (condition checked with interrupts off up to `sti; hlt`, so no wake-up
+  lost to the next tick; a CPU halted so counts as idle; `process::idle`
+  uses it); the requester yields straight to its driver and DONE wakes
+  the requester's CPU alone. Measured (stage 1 secondary, three boots
+  each): 413–528 us a request (44–88 / 302–406 / 38–50); boot to prompt
+  3.75–4.31 s → 3.33–3.73 s; the old built-in (kernel `ac6bcea` without
+  the archive, same image) 3.14–3.60 s. Kernel 971,776 → 976,384 bytes
+  (979,968 with the graphics task's D-284/D-285 beside it). No ABI change, no release
+  here (VIRTBLK.EXE unchanged), no new unsafe. Gates: stage 3 secondary
+  checks the new boot-log line (≥ 100 requests, ≤ 2000 us each); stage
+  16 `secondary-vblk` checks DRIVERS' `unit 0:` line; stages 1, 4, 5, 8,
+  9, 16 pass (`evidence/D-286-freehold.txt`; FREEHOLD `ec85e88`). The graphics task took D-284 and
+  D-285 while this run gated; renumbered (rebased twice, regated). **Found:** stage 3's secondary XCOPY
+  of `C:\FREEHOLD` to `D:` (limit 20 s) takes 34 s here now — main ~60 s,
+  the old built-in 21 s (so it was borderline in this sandbox anyway):
+  115,407 requests for 57 MiB at 218 us each (43 / 139 / 35). Stage 3
+  secondary fails there, as it did on main since D-280. What is left is
+  "in it" — see Next 1.
 
 - 2026-11-17 (run 15): **D-254 step 1b: the built-in virtio-blk driver
   removed (FREEHOLD D-283, `8658e85`).** Run 15 took the lock at 15:00Z
@@ -510,22 +540,20 @@ commit. Only the catalog's signature may be left waiting on the owner.
 
 ## Next, in order
 
-1. Make the block bridge's round trip cheaper (aim 2), before step 2.
-   Measured run 15: boot to prompt 4.7–5.8 s through VIRTBLK.EXE vs
-   3.0–3.3 s on the old built-in (stage 1 secondary, TCG) — ~150–250 us
-   more for each of ~10,000 requests. Ideas, each to be measured the same
-   way (three boots, `boot: prompt after`, and a count of requests and
-   their average wait in `DRIVERS`): wake only the waiter's CPU on DONE
-   instead of `wake_others` (and only the driver's on a new request);
-   let the requester hand the CPU straight to the driver (yield to it)
-   rather than halt; have VIRTBLK.EXE poll its used ring briefly before it
-   sleeps in `DRIVER_WAIT` (a driver change: v11); several requests in
-   flight per disk (the volume layer's read-ahead/write-behind as one
-   piece). A fix in the kernel alone lands without a release here.
-   Tried in run 15's own (dropped) bridge: the waiter only yielding for
-   its first 2 ms instead of halting made it worse (4.3–4.9 s vs 3.7–4.2 s
-   — spinning vCPUs starve the driver's and QEMU's threads on this 2-CPU
-   host), so not that.
+1. VIRTBLK.EXE 1.1.0 (release v11, pinned in FREEHOLD's
+   `tools/bootdrivers.pin`): after `submit`, poll the used ring for a
+   short while (try 50 / 100 / 200 us of `thread::monotonic_ns`) with
+   `AVAIL_F_NO_INTERRUPT` set, before clearing it, checking the ring once
+   more and sleeping in `DRIVER_WAIT` — as the built-in spun. Measure the
+   way run 16 did: stage 1 secondary's `block: 00:03.0 unit 0: ...` line
+   (three boots) and stage 3 secondary's XCOPY time (needs ≤ 20 s; run
+   16: 34 s, the old built-in 21 s here; raise the timeout locally to see
+   it, `DRIVERS` after it shows the totals). If polling is not enough,
+   next ideas: several requests in flight per disk (the bridge takes one
+   piece at a time per driver), or the volume layer's sector-at-a-time
+   I/O (a shared change with SETUP: design generally, its own decision).
+   Tried in run 15's (dropped) bridge: the *requester* yielding for its
+   first 2 ms instead of halting made it worse — not that.
 2. D-254 step 2: NVMe (`NVME.EXE`) over the block bridge as a boot
    driver (several namespaces = units; MSI-X), the built-in removed once
    stage 5's nvme machine and the disks machine pass through it. The
@@ -541,16 +569,16 @@ commit. Only the catalog's signature may be left waiting on the owner.
    commit (read only) when it moves; check the latest commit touching
    `crates/freehold-rtx` against the pinned one in
    `crates/freehold-rtx/Cargo.toml` each run that has room. Checked run
-   14: last change `2a93164`, an ancestor of the pinned `a7dec57` — current.
+   16: last change `2a93164`, an ancestor of the pinned `a7dec57` — current.
 6. If the owner signs `CATALOG.TXT`: check `CATALOG.SIG` against his
    `RELEASE.KEY` (`openssl pkeyutl -verify -pubin -inkey RELEASE.KEY -rawin
    -in CATALOG.TXT -sigfile CATALOG.SIG`), put his key in FREEHOLD's
    `system/FREEHOLD/RELEASE.KEY` (D-212) if it is not there, and gate a
    real-catalog `DRIVERS /CHECK` (up to date) on stage 16.
 7. Note for whoever runs stage 3 here: this sandbox (2 host CPUs, the gate's
-   4 vCPUs under TCG) boots in 5-8 s, over stage 3's 5 s limit, on the
-   unchanged secondary machine too; run 4 passed every other stage 3 check
-   with the limit raised locally (not committed). Likewise stage 16's
+   4 vCPUs under TCG) booted in 5-8 s in run 4, over stage 3's 5 s limit;
+   in run 16 both machines booted in ~3.5 s and stage 3's primary passed
+   — its secondary fails only at XCOPY's 20 s (Next 1). Likewise stage 16's
    `e1000u` checks reading the PCI routing takes under 50 ms; here it took
    45–53 ms (run 15): a failure there alone is the sandbox — run it again.
 
@@ -587,3 +615,4 @@ commit. Only the catalog's signature may be left waiting on the owner.
 - 2026-11-17 run 13: the owner's answers applied (D-277: D-253 A, D-254 B, D-255 A, NVRTX copy kept); INTx for user-mode drivers — the `_PRT` evaluator, shared level-triggered lines, E1000 1.2.0 + RTL8139 1.1.0, release v9 (D-278); gates 1/4/5/8/9/16 pass; next: D-254 step 1 (DRIVER_BLOCK, VIRTBLK.EXE).
 - 2026-11-17 run 14: D-254 step 1 — the block bridge (DRIVER_BLOCK) and VIRTBLK.EXE, the first boot driver, carried inside the kernel file, restarted if it ends, release v10 (D-280); gates 1/4/5/16 pass; next: remove the built-in virtio-blk.
 - 2026-11-17 run 15: took the lock while run 14 was landing step 1 and dropped its own copy of it; D-254 step 1b — the built-in virtio-blk removed, the archive optional at compile time (D-283); gates 1/4/5/9/16 pass; found the bridge costs ~1.5–2.5 s of TCG boot on the secondary machine — next: make its round trip cheaper, then NVMe.
+- 2026-11-17 run 16: the block bridge's round trip halved — one CPU woken instead of all, halt_for_wake, per-disk request counters in DRIVERS and the boot log (D-286); gates 1/4/5/8/9/16 pass; found stage 3's XCOPY still slow through the bridge — next: VIRTBLK.EXE polls before it sleeps.
