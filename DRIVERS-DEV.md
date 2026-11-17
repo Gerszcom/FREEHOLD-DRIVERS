@@ -82,6 +82,45 @@ commit. Only the catalog's signature may be left waiting on the owner.
 
 ## Where things stand
 
+- 2026-11-17 (run 14): **D-254 step 1 built: the block bridge
+  (`DRIVER_BLOCK`) and the first boot driver, `VIRTBLK.EXE`, carried
+  inside the kernel file (FREEHOLD D-280).** `drivers/virtblk` (1.0.0-1,
+  `Boot=Yes`), release `v10` (built from `8f4e765` against FREEHOLD
+  `649f0df`; the other six zips and `CATALOG.TXT` v9's byte for byte —
+  `cargo drivers` leaves boot drivers out of the online catalog;
+  `evidence/v10-build.txt`). FREEHOLD: `649f0df` (ABI + runtime
+  `driver::block`, additive, pushed first), then the kernel side (block
+  registry per-disk `TaskLock`s, `block/bridge.rs`, boot drivers in
+  `user.rs` started by `block::init` in PCI order from
+  `FileReader::memory`, `supervise` restarting them, given up after four
+  ends in a row), `kernel/build.rs` + `tools/bootdrivers.sh` +
+  `tools/bootdrivers.pin` (v10), the gate machine `secondary-vblk`, docs.
+  FREEHOLD `649f0df` (part 1), `ac6bcea` (part 2, rebased onto D-281's
+  firmware variables and D-282's surfaces). Every machine with `C:` on
+  virtio-blk boots through VIRTBLK.EXE. Measured (TCG): VIRTBLK.EXE up
+  93–140 ms after its start; `block: 1 disk(s) in` 157–213 ms on the
+  secondary machine against 86–111 ms with the built-in — ~80–100 ms of
+  TCG, a few ms on KVM (aim 2). Kernel 927,232 → 944,128 bytes without
+  the archive, 973,824 with it. Gate: new stage 16 machine
+  `secondary-vblk` (boot log, DRIVERS with the kernel file's boot drivers
+  and SHA-256, TASKS, write/copy/FC through C:, KILL → started again
+  from the kernel file with C: intact, four KILLs → disks given up, shell
+  alive). Stages 1, 4, 5, 8, 16 pass (`evidence/D-280-freehold.txt`;
+  after the last rebase 1, 5 and stage 16's vblk/disks/setup again).
+  Note: run 14 held the lock past 90 minutes (the gates ran three times
+  over two rebases); run 15 took it at 15:00Z while run 14 was landing.
+  Run 14 left that lock line in place; step 1 is landed — run 15, if it
+  began step 1 too, should drop its copy and take step 1b.
+  The built-in `virtio_blk.rs` is still there as the fallback for a
+  kernel built without the archive (and taken when the boot driver ends
+  without a disk — seen once while building: a missing dispatch line,
+  and the machine booted on the built-in). Found on the way: SETUP shows
+  a disk by its name after the PCI address, so bridged disks are named as
+  the built-ins name theirs (`VIRTBLK.EXE 00:03.0`); the overlay's
+  description (`+ memory layer`) is refreshed in the registry. NVRTX copy
+  checked: FREEHOLD-RTX's last change under `crates/freehold-rtx` is
+  `2a93164`, an ancestor of the pinned `a7dec57` — current.
+
 - 2026-11-17 (run 13): **The owner's answers applied (FREEHOLD D-277) and
   D-253's option A built: INTx for user-mode drivers (FREEHOLD D-278).**
   The kernel reads the firmware's PCI interrupt routing at boot with a
@@ -445,34 +484,29 @@ commit. Only the catalog's signature may be left waiting on the owner.
 
 ## Next, in order
 
-1. D-254 step 1 (option B, D-277): the block bridge and the first boot
-   driver. In FREEHOLD: `DRIVER_BLOCK` (register a disk: sector size,
-   count, read-only; take READ/WRITE/FLUSH requests with a lent buffer,
-   woken by `DRIVER_WAIT`'s `EVENT_WORK`; complete them), designed
-   generally with its own decision, the volume layer, the partition scan,
-   the optical layer and the overlay unchanged above it (shared with the
-   SETUP task: keep its interface); boot drivers carried inside the kernel
-   file (an archive appended to `BOOTX64.EFI` by `tools/build.sh`: name,
-   bytes, SHA-256, its catalog lines; pinned from a release here), started
-   from memory before `fs::mount_all`, restarted if they end (a few times,
-   requests held meanwhile, then the device given up and said so); measure
-   the boot time each adds (aim 2). Here: `VIRTBLK.EXE` (virtio-blk,
-   modern + transitional, on its MSI-X). Gate: every machine whose C: is
-   on virtio-blk (stage 1/4/5 secondary, the setup target...) boots and
-   passes through it, a kill restarts it with C: intact; only then remove
-   the built-in `virtio_blk.rs` (may be its own increment).
-2. D-254 step 2: NVMe (`NVME.EXE`), the built-in removed once stage 5's
-   nvme machine and the disks machine pass through it.
+1. D-254 step 1b: remove the built-in `virtio_blk.rs` and `virtio.rs`
+   (its only user; virtio-gpu has its own transport)
+   now that every virtio-blk machine passes through VIRTBLK.EXE; the
+   kernel without the archive then has no virtio-blk driver, so make
+   `tools/build.sh`'s archive mandatory (fail the build without it) or
+   keep the fallback — decide by what `cargo build -p freehold-kernel`
+   alone should give. Re-gate stages 1, 4, 5, 16 (every `secondary` and
+   every machine with a virtio target disk).
+2. D-254 step 2: NVMe (`NVME.EXE`) over the block bridge as a boot
+   driver (several namespaces = units; MSI-X), the built-in removed once
+   stage 5's nvme machine and the disks machine pass through it. The
+   bridge takes one piece at a time per driver: fine for one queue pair;
+   revisit if NVMe wants more in flight.
 3. D-254 step 3: AHCI with ATAPI (`AHCI.EXE`) — most machines' C:; the
    optical layer stays above the bridge.
 4. D-254 step 4: USB mass storage over the USB bridge (D-259), the live
    stick's path (stage 8, usbcd).
 5. The NVRTX copy (the owner's answer): `drivers/nvrtx` and
    `crates/freehold-rtx` are refreshed from Gerszcom/FREEHOLD-RTX by
-   commit (read only) when it moves; check its latest commit against the
-   pinned one in `crates/freehold-rtx/Cargo.toml` each run that has room.
-   Checked run 13: FREEHOLD-RTX `main` is `60c97fa`, with no change under
-   `crates/freehold-rtx` since the pinned `a7dec57` — the copy is current.
+   commit (read only) when it moves; check the latest commit touching
+   `crates/freehold-rtx` against the pinned one in
+   `crates/freehold-rtx/Cargo.toml` each run that has room. Checked run
+   14: last change `2a93164`, an ancestor of the pinned `a7dec57` — current.
 6. If the owner signs `CATALOG.TXT`: check `CATALOG.SIG` against his
    `RELEASE.KEY` (`openssl pkeyutl -verify -pubin -inkey RELEASE.KEY -rawin
    -in CATALOG.TXT -sigfile CATALOG.SIG`), put his key in FREEHOLD's
@@ -486,7 +520,8 @@ commit. Only the catalog's signature may be left waiting on the owner.
 ## Waiting on the owner
 
 - Sign the online driver catalog, `CATALOG.TXT` at the top of this
-  repository (now release v9's, addresses into `releases/v9/`); machines read
+  repository (now release v10's, addresses into `releases/v10/`; its
+  lines are v9's: VIRTBLK, a boot driver, is not in it); machines read
   it with `DRIVERS /UPDATE` and at boot (FREEHOLD D-219) and refuse it
   unsigned. In a checkout of this repository, `cargo drivers sign` prints
   the exact lines (two `openssl` lines — sign, then verify against
@@ -513,3 +548,4 @@ commit. Only the catalog's signature may be left waiting on the owner.
 - 2026-11-14 run 11: the USB bridge (DRIVER_USB) and USBECM.EXE (CDC ECM in user mode), release v8, the built-in ecm.rs removed (D-259); gates 1/4/5/8/16 pass.
 - 2026-11-14 run 12: DRIVERS.EXE matches the online catalog's USB: lines against every interface of a USB device (the report's `ifaces`), gated on stage 16 usbdl (D-262); gates 1/4/5/8/16 pass; every unblocked item done — paused, waiting on the owner.
 - 2026-11-17 run 13: the owner's answers applied (D-277: D-253 A, D-254 B, D-255 A, NVRTX copy kept); INTx for user-mode drivers — the `_PRT` evaluator, shared level-triggered lines, E1000 1.2.0 + RTL8139 1.1.0, release v9 (D-278); gates 1/4/5/8/9/16 pass; next: D-254 step 1 (DRIVER_BLOCK, VIRTBLK.EXE).
+- 2026-11-17 run 14: D-254 step 1 — the block bridge (DRIVER_BLOCK) and VIRTBLK.EXE, the first boot driver, carried inside the kernel file, restarted if it ends, release v10 (D-280); gates 1/4/5/16 pass; next: remove the built-in virtio-blk.

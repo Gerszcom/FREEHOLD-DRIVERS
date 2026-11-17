@@ -1,0 +1,84 @@
+FREEHOLD D-280 — the block bridge (DRIVER_BLOCK) and VIRTBLK.EXE, the first boot driver — gates run 2026-11-17 on the image built from tools/bootdrivers.pin (FREEHOLD-DRIVERS v10 at b185af9) and tools/drivers.pin (v10), rebased onto FREEHOLD 5da3ce2 (then 064e46a: see the end)
+
+dist/BOOTX64.EFI 973824 bytes, sha256 cf1e38aa0f4fa8510463c80d5d4dfff5ef1d22c7b40c3484fe3df63bd7ebf6ad
+
+14:42:40 [primary] PASS stage 1
+14:42:48 [secondary] PASS stage 1
+14:42:48 gate 1: PASS
+14:44:22 [primary] PASS stage 4
+14:46:03 [secondary] PASS stage 4
+14:46:03 gate 4: PASS
+14:46:17 [primary] PASS stage 5
+14:46:35 [secondary] PASS stage 5
+14:46:41 [nvme] PASS stage 5
+14:46:51 [primary-reboot] PASS stage 5
+14:47:05 [primary-up] PASS stage 5
+14:47:05 gate 5: PASS
+14:48:08 [primary] PASS stage 8
+14:49:22 [secondary] PASS stage 8
+14:50:11 [usb] PASS stage 8
+14:50:11 gate 8: PASS
+14:50:59 [primary] PASS stage 16
+14:54:29 [secondary] PASS stage 16
+14:55:05 [rtl] PASS stage 16
+14:55:41 [e1000u] PASS stage 16
+14:56:17 [e1000e] PASS stage 16
+14:56:47 [intxa] PASS stage 16
+14:57:18 [intxb] PASS stage 16
+14:57:55 [vnetm] PASS stage 16
+14:58:12 [secondary-vblk] PASS stage 16
+14:59:04 [drvdl] PASS stage 16
+14:59:32 [usbdl] PASS stage 16
+15:02:13 [setup] PASS stage 16
+15:02:34 [cdrom] PASS stage 16
+15:02:45 [usbcd] PASS stage 16
+15:03:07 [disks] PASS stage 16
+15:03:12 [reinstall] PASS stage 16
+15:03:16 [installed] PASS stage 16
+15:03:30 [claim] PASS stage 16
+15:05:34 [install] PASS stage 16
+15:07:38 [dualboot] PASS stage 16
+15:08:11 [bootentry] PASS stage 16
+15:10:07 [replace] PASS stage 16
+15:12:01 [mbr] PASS stage 16
+15:13:53 [mbrreplace] PASS stage 16
+15:15:45 [verify] PASS stage 16
+15:15:56 [primary-keyb] PASS stage 16
+15:16:04 [primary-region] PASS stage 16
+15:16:06 gate 16: PASS
+
+== stage 16 secondary-vblk (the boot driver's own checks) ==
+14:57:59 [secondary] ok   no built-in virtio-blk: VIRTBLK.EXE (pid 1) started from the kernel file, its disk 0 registered over the block bridge on MSI-X, up 92 ms after its start and before C: was mounted (aim 2)
+14:58:00 [secondary] ok   DRIVERS lists VIRTBLK.EXE running for the virtio disk
+14:58:00 [secondary] ok   ... DRIVERS shows the kernel file's boot drivers (SHA-256), VIRTBLK.EXE's status and disk 0
+14:58:00 [secondary] ok   TASKS shows VIRTBLK.EXE as a driver
+14:58:01 [secondary] ok   a file written on C: and read back (1)
+14:58:02 [secondary] ok   a program copied on C: (1)
+14:58:02 [secondary] ok   FC.EXE, loaded from C:, finds the copy identical (1)
+14:58:03 [secondary] ok   a file written on C: and read back (2)
+14:58:04 [secondary] ok   a program copied on C: (2)
+14:58:05 [secondary] ok   FC.EXE, loaded from C:, finds the copy identical (2)
+14:58:05 [secondary] ok   the file written before the KILL reads back after it
+14:58:06 [secondary] ok   DRIVERS: VIRTBLK.EXE started twice
+14:58:06 [secondary] ok   KILL → VIRTBLK.EXE started again from the kernel file; C: intact, written and read through it
+14:58:07 [secondary] ok   "block: pid 13 serves [0-9a-f:.]+'s disk 0 again": "block: pid 13 serves 00:03.0's disk 0 again"
+14:58:09 [secondary] ok   "block: pid 14 serves [0-9a-f:.]+'s disk 0 again": "block: pid 14 serves 00:03.0's disk 0 again"
+14:58:10 [secondary] ok   "block: pid 15 serves [0-9a-f:.]+'s disk 0 again": "block: pid 15 serves 00:03.0's disk 0 again"
+14:58:12 [secondary] ok   the shell still answers with C:'s disk given up (aim 10)
+14:58:12 [secondary] ok   C: reports its disk's failure instead of hanging
+14:58:12 [secondary] ok   four ends in a row → the disk is given up; the shell goes on and C: reports the failure
+
+== boot timing (TCG; 'block: N disk(s) in' covers every disk controller) ==
+drivers: VIRTBLK.EXE up for 00:03.0 in 183 ms
+block: 1 disk(s) in 268 ms
+drivers: VIRTBLK.EXE up for 00:03.0 in 85 ms
+block: 1 disk(s) in 146 ms
+drivers: VIRTBLK.EXE up for 00:03.0 in 89 ms
+block: 1 disk(s) in 155 ms
+drivers: VIRTBLK.EXE up for 00:03.0 in 83 ms
+block: 1 disk(s) in 154 ms
+drivers: VIRTBLK.EXE up for 00:03.0 in 92 ms
+block: 1 disk(s) in 160 ms
+built-in virtio-blk on the same machine (kernel without the archive, three boots): block: 1 disk(s) in 93, 86, 111 ms
+
+== after rebasing onto FREEHOLD 064e46a (D-282, the graphics task's surfaces): rebuilt (dist/BOOTX64.EFI 976896 bytes, sha256 f6006e698e3dc4d07846638906c30acc75659bff1731750a3c600aa144cf05af) and run again: stage 1 PASS, stage 5 PASS (all five machines), stage 16 secondary-vblk PASS, disks PASS, setup PASS ==
